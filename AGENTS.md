@@ -2,13 +2,14 @@
 
 ## Project Overview
 
-React와 TypeScript 문법을 빠르게 확인하는 Rspress 문서 사이트다. Rspress 설정, 문서 소스, 기준 문서가 분리되어 있다.
+React와 TypeScript 개념을 빠르게 확인하는 Rspress 문서 사이트와 CoderPad형 practice workspace다. 문서 소스, 기준 문서, practice package가 분리되어 있다.
 
 ## Tech Stack
 
 - 런타임은 `mise`로 고정한 Node 24.16.0과 pnpm 10.33.0을 쓴다.
 - 사이트 생성기는 Rspress 2를 쓴다.
 - 문서 본문은 MDX를 쓴다.
+- practice package는 Vite React 앱과 Vitest 채점 테스트를 쓴다.
 
 ## Project Structure
 
@@ -21,6 +22,7 @@ docs/
   sections/                # MDX 문서 소스
 practices/                 # CoderPad형 React + TypeScript practice packages
 references/sections.md     # 문서 목록과 검증 기준
+public/readme-banner.png   # README와 Open Graph 용도 배너 이미지
 rspress.config.ts          # Rspress root, base, sidebar, search, llms 설정
 scripts/validate-codeblocks.mjs # MDX 코드블록 재귀 파싱 검증
 ```
@@ -28,6 +30,10 @@ scripts/validate-codeblocks.mjs # MDX 코드블록 재귀 파싱 검증
 ## Runtime And Architecture
 
 Rspress는 `docs/`를 문서 root로 읽고 conventional route를 만든다. 자세한 구조와 routing 기준은 `.agents/knowledge/architecture.md`를 먼저 확인한다.
+
+## UI And Assets
+
+문서 사이트, README 배너, practice UI 기준은 `.agents/knowledge/design.md`를 먼저 확인한다.
 
 ## Verification Commands
 
@@ -40,6 +46,7 @@ Rspress는 `docs/`를 문서 root로 읽고 conventional route를 만든다. 자
 
 - `.agents/knowledge/architecture.md`: Rspress 구조, route, sidebar 기준
 - `.agents/knowledge/content-quality.md`: 문서 품질, 코드 예시, Rspress MDX 표현 기준
+- `.agents/knowledge/design.md`: README 배너, 문서 사이트, practice UI 기준
 - `.agents/knowledge/project-structure.md`: 주요 파일과 디렉터리 위치
 - `.agents/knowledge/verification.md`: 검증 명령과 blind spot
 - `.agents/knowledge/rspress.md`: 이 repo에서 쓰는 Rspress MDX 문법 reference

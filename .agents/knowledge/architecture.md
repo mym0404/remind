@@ -1,6 +1,6 @@
 # Architecture
 
-이 저장소는 Rspress 문서 사이트다. Rspress 설정은 `rspress.config.ts`에서 시작한다.
+이 저장소는 Rspress 문서 사이트와 CoderPad형 React practice workspace를 함께 둔다. Rspress 설정은 `rspress.config.ts`에서 시작한다.
 
 ## Runtime Path
 
@@ -25,3 +25,5 @@ Sidebar는 `rspress.config.ts`에서 만든다. 설정 파일은 `references/sec
 ## Practice Workspace
 
 `practices/*`는 Rspress 사이트와 분리된 pnpm workspace package다. 각 package는 Vite React 앱이며 CoderPad형 starter, 한국어 README, Vitest 채점 테스트를 함께 둔다.
+
+practice package의 dependency version은 각 package가 직접 선언하지 않고 `pnpm-workspace.yaml`의 `catalog`를 참조한다.

@@ -18,3 +18,4 @@
 - `pnpm validate:codeblocks`는 syntax 손상만 잡는다. runtime import 누락, 실제 API contract, 예시의 타입 정확성은 별도 검토가 필요하다.
 - 의미 있는 UI 변경 뒤에는 dev server와 브라우저 확인을 함께 한다.
 - practice 테스트는 정답 구현을 검증하기 위한 기준이다. starter 코드에서는 미구현 요구사항 때문에 실패하는 것이 정상일 수 있다.
+- README 배너를 바꾼 뒤에는 이미지 파일을 직접 확인하고 README의 상대 경로가 유지되는지 확인한다.
