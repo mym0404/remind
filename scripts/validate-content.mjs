@@ -69,14 +69,14 @@ export const extractMarkdownLinks = (markdown) =>
 
 const readText = (filePath) => fs.readFileSync(filePath, "utf8");
 
-const listMarkdownFiles = (dir) => {
+const listSectionFiles = (dir) => {
   if (!fs.existsSync(dir)) {
     return [];
   }
 
   return fs
     .readdirSync(dir, { withFileTypes: true })
-    .filter((entry) => entry.isFile() && entry.name.endsWith(".md"))
+    .filter((entry) => entry.isFile() && entry.name.endsWith(".mdx"))
     .map((entry) => path.join(dir, entry.name))
     .sort();
 };
@@ -89,6 +89,7 @@ const walkTextFiles = (dir) => {
     ".js",
     ".json",
     ".md",
+    ".mdx",
     ".mjs",
     ".ts",
     ".tsx",
@@ -161,13 +162,17 @@ const validateSectionShape = ({ expectedTitles, filePath, rootDir, text }) => {
 
 export const validateContent = ({ rootDir = ROOT_DIR } = {}) => {
   const referencePath = path.join(rootDir, "references", "sections.md");
-  const sectionDir = path.join(rootDir, "content", "sections");
+  const sectionDir = path.join(rootDir, "docs", "sections");
   const expectedTitles = extractSectionTitles(readText(referencePath));
-  const files = listMarkdownFiles(sectionDir);
+  const files = listSectionFiles(sectionDir);
   const errors = [];
 
   if (expectedTitles.length !== 35) {
     errors.push(`기준 섹션은 35개여야 합니다. 현재 ${expectedTitles.length}개입니다.`);
+  }
+
+  if (files.length !== 35) {
+    errors.push(`MDX 섹션 파일은 35개여야 합니다. 현재 ${files.length}개입니다.`);
   }
 
   const sectionResults = files.map((filePath) =>

@@ -4,18 +4,20 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc -b && vite build",
-    "preview": "vite preview",
+    "build": "rspress build",
+    "dev": "rspress dev",
+    "preview": "rspress preview",
     "test": "node --test scripts/*.test.mjs",
     "validate:content": "node scripts/validate-content.mjs"
   },
   "dependencies": {
-    "@vitejs/plugin-react": "^5.1.2",
-    "typescript": "^5.9.3",
-    "vite": "^7.3.0",
-    "react": "^19.2.3",
-    "react-dom": "^19.2.3"
+    "@rspress/core": "^2.0.14"
   },
-  "devDependencies": {}
+  "devDependencies": {
+    "@types/node": "^22.8.1",
+    "@types/react": "^19.2.15",
+    "@types/react-dom": "^19.2.3",
+    "react": "^19.2.6",
+    "react-dom": "^19.2.6"
+  }
 }

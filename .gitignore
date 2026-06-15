@@ -1,6 +1,17 @@
-node_modules/
-dist/
+# Local
 .DS_Store
+*.local
+*.log*
 .env
 .env.local
 *.tsbuildinfo
+
+# Dist
+node_modules
+dist/
+doc_build/
+
+# IDE
+.vscode/*
+!.vscode/extensions.json
+.idea
