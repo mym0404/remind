@@ -1,0 +1,39 @@
+# Context Provider Guard
+
+## 문제
+
+Provider 바깥 hook 사용을 명확한 에러로 막고 context value를 안정화한다.
+
+## 핵심 개념
+
+- Provider와 useTheme hook을 만든다.
+- Provider 밖에서는 에러를 던진다.
+- context value는 useMemo로 안정화한다.
+
+## 풀이 흐름
+
+context 기본값을 억지 객체로 채우지 말고 `undefined`를 허용한다. hook에서 `undefined`면 Provider 누락 에러를 던진다. Provider value는 state와 action을 담은 객체라 `useMemo`로 고정한다.
+
+## 핵심 코드
+
+```tsx
+const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
+
+export const useTheme = () => {
+  const context = useContext(ThemeContext);
+  if (context === undefined) throw new Error("useTheme must be used within ThemeProvider");
+  return context;
+};
+
+const value = useMemo(() => ({ theme, toggleTheme }), [theme, toggleTheme]);
+```
+
+## 테스트가 보는 것
+
+- Provider 없이 hook을 쓰면 정해진 에러가 나는지 본다.
+- Provider 안에서는 state와 action이 내려와 버튼으로 상태가 바뀌는지 확인한다.
+
+## 실수 포인트
+
+- 가짜 기본값을 넣으면 Provider 누락 버그가 조용히 지나간다.
+- value 객체를 매번 새로 만들면 소비 컴포넌트가 불필요하게 다시 렌더링된다.

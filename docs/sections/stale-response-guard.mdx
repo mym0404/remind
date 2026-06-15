@@ -1,0 +1,44 @@
+# Stale Response Guard
+
+## 문제
+
+늦게 끝난 이전 요청이 최신 화면을 덮지 못하게 막는다.
+
+## 핵심 개념
+
+- 검색어 변경마다 요청을 보낸다.
+- 최신 요청 id나 AbortController로 stale response를 무시한다.
+- loading 중에도 input은 즉시 갱신된다.
+
+## 풀이 흐름
+
+요청을 시작할 때마다 request id를 증가시킨다. 응답을 받았을 때 현재 id와 요청 당시 id가 다르면 화면에 반영하지 않는다. input state는 요청 상태와 분리해서 loading 중에도 계속 바뀌게 둔다.
+
+## 핵심 코드
+
+```tsx
+const requestIdRef = useRef(0);
+
+useEffect(() => {
+  if (!query) return;
+  const requestId = requestIdRef.current + 1;
+  requestIdRef.current = requestId;
+  setStatus("loading");
+
+  searchProducts(query).then((nextResults) => {
+    if (requestIdRef.current !== requestId) return;
+    setResults(nextResults);
+    setStatus("success");
+  });
+}, [query]);
+```
+
+## 테스트가 보는 것
+
+- 느린 요청 뒤에 빠른 요청을 보내도 빠른 결과만 남는지 본다.
+- loading 중에도 input value가 최신 입력을 유지하는지 확인한다.
+
+## 실수 포인트
+
+- 응답 순서를 요청 순서로 믿으면 race condition이 생긴다.
+- loading state와 input state를 묶으면 사용자가 입력을 계속할 수 없다.

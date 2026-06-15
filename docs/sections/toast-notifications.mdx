@@ -1,0 +1,39 @@
+# Toast Notifications
+
+## 문제
+
+toast queue, live region, 수동 닫기, 자동 제거를 한 문제로 다룬다.
+
+## 핵심 개념
+
+- toast 배열 상태를 관리한다.
+- role="status"나 aria-live를 둔다.
+- 수동 닫기와 timer cleanup을 구현한다.
+
+## 풀이 흐름
+
+toast는 배열 state로 관리한다. `showToast`는 functional update로 새 item을 붙이고, 닫기는 id로 filter한다. 자동 제거 timer는 item별로 만들고 unmount나 수동 닫기 때 정리한다.
+
+## 핵심 코드
+
+```tsx
+const showToast = (message: string) => {
+  const id = crypto.randomUUID();
+  setToasts((current) => [...current, { id, message }]);
+  window.setTimeout(() => removeToast(id), 3000);
+};
+
+<div role="status" aria-live="polite">
+  {toasts.map((toast) => <ToastItem key={toast.id} toast={toast} onClose={removeToast} />)}
+</div>;
+```
+
+## 테스트가 보는 것
+
+- 두 번 표시하면 toast가 두 개 쌓이고 live region 안에 있는지 본다.
+- 닫기 버튼과 3초 자동 제거가 모두 동작하는지 확인한다.
+
+## 실수 포인트
+
+- `setToasts([...toasts, toast])`는 빠른 연속 호출에서 이전 toast를 잃을 수 있다.
+- live region이 없으면 새 알림이 보조기술에 전달되지 않는다.

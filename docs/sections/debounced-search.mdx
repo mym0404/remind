@@ -1,0 +1,40 @@
+# Debounced Search
+
+## 문제
+
+입력은 즉시 바꾸고 요청 기준값만 delay 뒤에 갱신한다.
+
+## 핵심 개념
+
+- useDebounce hook을 만든다.
+- value 변경 시 이전 timer를 cleanup한다.
+- 마지막 입력만 검색에 반영한다.
+
+## 풀이 흐름
+
+원본 query는 input에 바로 연결한다. 검색 요청이나 필터링에는 debounced query를 쓴다. `useEffect` 안의 timer는 value나 delay가 바뀔 때마다 지워야 마지막 입력만 남는다.
+
+## 핵심 코드
+
+```tsx
+export const useDebounce = <Value,>(value: Value, delay: number) => {
+  const [debouncedValue, setDebouncedValue] = useState(value);
+
+  useEffect(() => {
+    const timerId = window.setTimeout(() => setDebouncedValue(value), delay);
+    return () => window.clearTimeout(timerId);
+  }, [delay, value]);
+
+  return debouncedValue;
+};
+```
+
+## 테스트가 보는 것
+
+- hook이 delay 전에는 이전 값을 유지하고 delay 뒤에 새 값을 내는지 본다.
+- input 값은 즉시 바뀌지만 status는 debounced 값이 오기 전까지 기다리는지 확인한다.
+
+## 실수 포인트
+
+- input value 자체를 debounce하면 타이핑이 느려진다.
+- cleanup이 없으면 오래된 timer가 나중에 값을 덮는다.

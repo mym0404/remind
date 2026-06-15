@@ -1,6 +1,6 @@
 # Architecture
 
-이 저장소는 Rspress 문서 사이트와 CoderPad형 React practice workspace를 함께 둔다. Rspress 설정은 `rspress.config.ts`에서 시작한다.
+이 저장소는 Rspress 해답 문서 사이트와 CoderPad형 React practice workspace를 함께 둔다. Rspress 설정은 `rspress.config.ts`에서 시작한다.
 
 ## Runtime Path
 
@@ -15,12 +15,12 @@
 Rspress는 `docs/` 아래 파일 경로로 route를 만든다.
 
 - `docs/index.mdx`는 `/` route이자 첫 문서다.
-- `docs/sections/react-state-events.mdx`는 `/sections/react-state-events` route다.
-- `docs/sections/*.mdx`는 `/sections/*` route다.
+- `docs/sections/controlled-fields.mdx`는 `/sections/controlled-fields` route다.
+- `docs/sections/*.mdx`는 practice별 해답 페이지이며 `/sections/*` route다.
 
 ## Sidebar
 
-Sidebar는 `rspress.config.ts`에서 만든다. 설정 파일은 `references/sections.md`와 `docs/sections/*.mdx`를 읽어 sidebar item을 만든다.
+Sidebar는 `rspress.config.ts`에서 만든다. 설정 파일은 `references/sections.md`의 해답 제목과 `docs/sections/*.mdx`의 H1을 맞춰 sidebar item을 만든다.
 
 ## Practice Workspace
 

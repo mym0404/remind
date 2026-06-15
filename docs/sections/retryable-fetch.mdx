@@ -1,0 +1,41 @@
+# Retryable Fetch
+
+## 문제
+
+실패한 요청을 같은 조건으로 다시 실행한다.
+
+## 핵심 개념
+
+- 실패 시 error message와 retry 버튼을 렌더링한다.
+- retry는 마지막 요청 조건을 유지한다.
+- 재시도 중에는 loading 상태를 다시 보여준다.
+
+## 풀이 흐름
+
+요청 함수를 `loadReport`처럼 재사용 가능한 함수로 만든다. 최초 실행과 retry 버튼이 같은 함수를 부르면 조건이 어긋나지 않는다. 실패 상태에서는 error message와 retry 버튼만 명확히 보여준다.
+
+## 핵심 코드
+
+```tsx
+const loadReport = async () => {
+  setState({ status: "loading" });
+  try {
+    const report = await fetchReport();
+    setState({ status: "success", report });
+  } catch {
+    setState({ status: "error", message: "보고서를 불러오지 못했습니다." });
+  }
+};
+
+{state.status === "error" ? <button onClick={loadReport}>다시 시도</button> : null}
+```
+
+## 테스트가 보는 것
+
+- mock request의 실패 branch가 실제로 에러를 던지는지 확인한다.
+- 실패 화면에서 다시 시도하면 loading을 거쳐 성공 데이터가 보이는지 본다.
+
+## 실수 포인트
+
+- retry에서 다른 함수를 부르면 최초 요청과 조건이 달라질 수 있다.
+- error message만 있고 버튼이 없으면 사용자가 복구할 방법이 없다.

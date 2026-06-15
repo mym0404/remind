@@ -1,0 +1,45 @@
+# Modal Dialog
+
+## 문제
+
+dialog ARIA, focus 이동, Escape와 backdrop 닫기를 한 modal 문제 안에서 구현한다.
+
+## 핵심 개념
+
+- role="dialog"와 aria-modal을 적용한다.
+- 열릴 때 닫기 버튼으로 focus를 옮긴다.
+- 닫힐 때 trigger focus를 복귀한다.
+- Escape와 backdrop click으로 닫는다.
+
+## 풀이 흐름
+
+열기 버튼 ref와 닫기 버튼 ref를 잡는다. modal이 열리면 닫기 버튼에 focus를 주고 keydown listener를 등록한다. 닫을 때는 상태를 끄고 다음 frame에서 trigger focus를 복귀한다.
+
+## 핵심 코드
+
+```tsx
+const triggerRef = useRef<HTMLButtonElement>(null);
+const closeRef = useRef<HTMLButtonElement>(null);
+
+useEffect(() => {
+  if (!open) return;
+  closeRef.current?.focus();
+  const onKeyDown = (event: KeyboardEvent) => { if (event.key === "Escape") closeModal(); };
+  window.addEventListener("keydown", onKeyDown);
+  return () => window.removeEventListener("keydown", onKeyDown);
+}, [closeModal, open]);
+
+<section role="dialog" aria-modal="true" aria-labelledby="modal-title">
+  <h2 id="modal-title">설정</h2>
+</section>;
+```
+
+## 테스트가 보는 것
+
+- 열린 modal이 dialog role과 accessible name을 갖는지 본다.
+- Escape로 닫힌 뒤 focus가 trigger로 돌아오는지 확인한다.
+
+## 실수 포인트
+
+- dialog 안쪽 클릭과 backdrop 클릭을 구분하지 않으면 내부 조작 중 modal이 닫힌다.
+- keydown listener cleanup이 빠지면 닫힌 modal도 Escape에 반응한다.

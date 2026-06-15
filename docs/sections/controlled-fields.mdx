@@ -1,0 +1,43 @@
+# Controlled Fields
+
+## 문제
+
+여러 입력값을 하나의 form state로 묶고 DOM 문자열을 화면 경계에서 정리한다.
+
+## 핵심 개념
+
+- 이름, 이메일, 역할, 약관 동의를 하나의 state object로 관리한다.
+- checkbox와 select도 controlled component로 다룬다.
+- 입력값이 바뀔 때 미리보기 문장이 함께 갱신된다.
+
+## 풀이 흐름
+
+form 객체를 하나 두고 모든 입력을 그 객체에 연결한다. text input은 `event.target.value`, checkbox는 `event.target.checked`, select는 허용된 option 값만 state에 넣는다. 미리보기 문장은 별도 state로 저장하지 말고 form 값에서 바로 계산한다.
+
+## 핵심 코드
+
+```tsx
+const initialForm = { name: "", email: "", role: "frontend", agreed: false };
+
+const [form, setForm] = useState(initialForm);
+
+const updateField = <Field extends keyof typeof initialForm>(
+  field: Field,
+  value: (typeof initialForm)[Field],
+) => {
+  setForm((current) => ({ ...current, [field]: value }));
+};
+
+<input value={form.email} onChange={(event) => updateField("email", event.target.value)} />;
+<input type="checkbox" checked={form.agreed} onChange={(event) => updateField("agreed", event.target.checked)} />;
+```
+
+## 테스트가 보는 것
+
+- text, select, checkbox를 모두 조작한 뒤 status 문구가 같은 state를 읽는지 본다.
+- 입력을 지우고 다시 써도 controlled 값이 꼬이지 않는지 확인한다.
+
+## 실수 포인트
+
+- checkbox를 `value`로 읽으면 boolean 상태가 깨진다.
+- field마다 state를 따로 두면 미리보기와 reset 흐름이 금방 흩어진다.

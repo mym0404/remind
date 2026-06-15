@@ -1,0 +1,38 @@
+# Virtualized List Range
+
+## 문제
+
+scroll 위치와 row 높이로 보이는 구간만 렌더링한다.
+
+## 핵심 개념
+
+- getVisibleRange를 구현한다.
+- overscan을 적용한다.
+- 전체 row를 한 번에 렌더링하지 않는다.
+
+## 풀이 흐름
+
+scrollTop을 rowHeight로 나눠 첫 visible index를 구한다. viewport 높이로 visible count를 계산하고 overscan만큼 앞뒤를 넓힌다. 렌더링은 이 범위만 slice하고, 전체 높이는 spacer로 유지한다.
+
+## 핵심 코드
+
+```tsx
+const getVisibleRange = ({ scrollTop, viewportHeight, rowHeight, itemCount, overscan }: RangeParams) => {
+  const firstVisible = Math.floor(scrollTop / rowHeight);
+  const visibleCount = Math.ceil(viewportHeight / rowHeight);
+  return {
+    start: Math.max(0, firstVisible - overscan),
+    end: Math.min(itemCount, firstVisible + visibleCount + overscan),
+  };
+};
+```
+
+## 테스트가 보는 것
+
+- range 함수가 overscan을 반영한 start/end를 반환하는지 본다.
+- 2000개 전체를 DOM에 올리지 않는지 확인한다.
+
+## 실수 포인트
+
+- end index를 inclusive로 다루면 slice 범위가 하나씩 어긋난다.
+- key를 index로만 쓰면 row 재사용 때 내용이 흔들릴 수 있다.

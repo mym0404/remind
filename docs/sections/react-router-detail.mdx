@@ -1,0 +1,37 @@
+# React Router Detail
+
+## 문제
+
+목록 route와 상세 route를 나누고 route param으로 데이터를 찾는다.
+
+## 핵심 개념
+
+- React Router Routes를 구성한다.
+- useParams로 id를 읽는다.
+- 없는 id는 404 fallback을 보여준다.
+
+## 풀이 흐름
+
+목록은 `/`, 상세는 `/articles/:articleId`로 둔다. 목록 item은 `Link`로 이동하고, 상세 컴포넌트는 `useParams`로 id를 읽어 데이터를 찾는다. 데이터가 없으면 같은 상세 영역에서 404 heading을 렌더링한다.
+
+## 핵심 코드
+
+```tsx
+<Routes>
+  <Route path="/" element={<ArticleList articles={articles} />} />
+  <Route path="/articles/:articleId" element={<ArticleDetail articles={articles} />} />
+</Routes>;
+
+const { articleId } = useParams();
+const article = articles.find((item) => item.id === articleId);
+```
+
+## 테스트가 보는 것
+
+- 목록에서 link를 클릭하면 상세 route의 제목과 본문이 보이는지 본다.
+- 없는 id로 들어오면 404 fallback이 나오는지 확인한다.
+
+## 실수 포인트
+
+- button click으로만 상세를 바꾸면 URL state가 남지 않는다.
+- param이 없는 경우를 무시하면 잘못된 URL에서 빈 화면이 된다.

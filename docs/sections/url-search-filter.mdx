@@ -1,0 +1,39 @@
+# URL Search Filter
+
+## 문제
+
+검색어를 URL query string에 저장하고 새로고침 가능한 상태로 만든다.
+
+## 핵심 개념
+
+- useSearchParams로 초기 검색어를 읽는다.
+- 검색어 변경 시 query string을 갱신한다.
+- 빈 검색어는 query param을 제거한다.
+
+## 풀이 흐름
+
+검색어 state를 따로 두지 않고 `searchParams.get("q")`를 화면 기준값으로 쓴다. input이 바뀌면 새 `URLSearchParams`를 만들고 `q`를 set/delete한다. 불필요한 history가 쌓이지 않게 replace 옵션을 쓴다.
+
+## 핵심 코드
+
+```tsx
+const [searchParams, setSearchParams] = useSearchParams();
+const query = searchParams.get("q") ?? "";
+
+const updateQuery = (nextQuery: string) => {
+  const nextParams = new URLSearchParams(searchParams);
+  if (nextQuery.trim()) nextParams.set("q", nextQuery);
+  else nextParams.delete("q");
+  setSearchParams(nextParams, { replace: true });
+};
+```
+
+## 테스트가 보는 것
+
+- 초기 URL의 `q` 값이 input과 목록 필터에 반영되는지 본다.
+- 입력 변경 후 현재 query string이 갱신되는지 확인한다.
+
+## 실수 포인트
+
+- URL과 React state를 둘 다 기준값으로 두면 새로고침에서 어긋난다.
+- 빈 문자열을 그대로 저장하면 공유 URL이 지저분해진다.

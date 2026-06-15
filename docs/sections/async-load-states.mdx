@@ -1,0 +1,44 @@
+# Async Load States
+
+## 문제
+
+네트워크 요청의 loading, error, data, empty 상태를 분리한다.
+
+## 핵심 개념
+
+- 초기 요청 시 loading을 보여준다.
+- 빈 배열은 empty state로 처리한다.
+- 실패는 error message로 보여준다.
+
+## 풀이 흐름
+
+요청 상태를 문자열 하나로 뭉개지 말고 loading, success, empty, error로 나눈다. 응답 배열이 비어 있으면 성공 목록이 아니라 빈 상태를 렌더링한다. 실패한 요청은 사용자에게 보이는 error message로 바꾼다.
+
+## 핵심 코드
+
+```tsx
+type LoadState<T> =
+  | { status: "loading" }
+  | { status: "success"; data: T[] }
+  | { status: "empty" }
+  | { status: "error"; message: string };
+
+useEffect(() => {
+  let cancelled = false;
+  setState({ status: "loading" });
+  fetchProducts()
+    .then((data) => setState(data.length === 0 ? { status: "empty" } : { status: "success", data }))
+    .catch(() => !cancelled && setState({ status: "error", message: "상품을 불러오지 못했습니다." }));
+  return () => { cancelled = true; };
+}, []);
+```
+
+## 테스트가 보는 것
+
+- mount 직후 loading이 보이고, 요청 후 상품이 나타나는지 본다.
+- 빈 응답과 실패 응답을 data state와 분리해 검증한다.
+
+## 실수 포인트
+
+- 빈 배열을 success로만 처리하면 화면에 아무것도 없어 원인을 알기 어렵다.
+- catch에서 상태를 바꾸지 않으면 실패가 영원한 loading처럼 보인다.

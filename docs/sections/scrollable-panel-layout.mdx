@@ -1,0 +1,44 @@
+# Scrollable Panel Layout
+
+## 문제
+
+고정 header와 내부 scroll 영역이 섞인 panel layout을 만든다.
+
+## 핵심 개념
+
+- page 전체 높이를 고정한다.
+- grid row에 minmax(0, 1fr)를 쓴다.
+- scroll 영역에 overflow: auto를 둔다.
+
+## 풀이 흐름
+
+바깥 workspace는 높이를 갖는 grid로 만들고 row를 `auto minmax(0, 1fr)`로 나눈다. 내부 body와 scroll list에는 `min-height: 0`을 줘야 grid child가 줄어든다. 실제 스크롤은 message list 한 곳에만 둔다.
+
+## 핵심 코드
+
+```css
+.workspace {
+  height: 80vh;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.workspace-body {
+  min-height: 0;
+}
+
+.message-list {
+  overflow: auto;
+  min-height: 0;
+}
+```
+
+## 테스트가 보는 것
+
+- header와 내부 message list가 분리되어 렌더링되는지 본다.
+- CSS에 `minmax(0, 1fr)`와 내부 overflow 규칙이 있는지 확인한다.
+
+## 실수 포인트
+
+- grid child의 기본 `min-height: auto`를 그대로 두면 내부 scroll이 아니라 페이지 전체가 늘어난다.
+- 여러 영역에 overflow를 주면 wheel 동작이 예측하기 어렵다.

@@ -1,6 +1,6 @@
 # Design
 
-이 저장소의 UI 표면은 Rspress 문서 사이트, README 배너, CoderPad형 practice 앱이다.
+이 저장소의 UI 표면은 Rspress 해답 문서 사이트, README 배너, CoderPad형 practice 앱이다.
 
 ## README Banner
 
@@ -15,6 +15,12 @@
 - 첫 화면은 문제 풀이에 필요한 starter UI여야 한다.
 - UI 문구는 문제 지시를 반복하지 않고 사용자가 조작해야 하는 label, button, status 중심으로 둔다.
 - 카드형 장식보다 입력, 리스트, 상세, overlay 같은 문제 풀이 표면을 우선한다.
+
+## Docs UI
+
+- 문서 사이트는 React 개념 사전이 아니라 practice별 해답집이다.
+- 각 해답 페이지는 문제, 핵심 개념, 풀이 흐름, 핵심 코드, 테스트가 보는 것, 실수 포인트 순서로 둔다.
+- 해답 코드는 완성 파일 전체가 아니라 테스트 통과에 필요한 핵심 흐름만 보여준다.
 
 ## Verification
 

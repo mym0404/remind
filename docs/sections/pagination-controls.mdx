@@ -1,0 +1,37 @@
+# Pagination Controls
+
+## 문제
+
+page state와 page size로 목록을 자르고 이전/다음 버튼 상태를 계산한다.
+
+## 핵심 개념
+
+- 현재 page를 state로 둔다.
+- page size로 visible items를 계산한다.
+- 처음/끝 page에서 버튼을 disabled 처리한다.
+
+## 풀이 흐름
+
+page는 1부터 시작하는 state로 둔다. `getPageItems`는 `(page - 1) * pageSize`를 시작 index로 사용한다. total page를 계산해 이전/다음 버튼 disabled 상태를 만든다.
+
+## 핵심 코드
+
+```tsx
+const getPageItems = <Item,>(items: Item[], page: number, pageSize: number) => {
+  const startIndex = (page - 1) * pageSize;
+  return items.slice(startIndex, startIndex + pageSize);
+};
+
+const hasPrevious = page > 1;
+const hasNext = page < totalPages;
+```
+
+## 테스트가 보는 것
+
+- 순수 함수가 원하는 page slice를 반환하는지 본다.
+- 다음 버튼을 누르면 page status와 목록 첫 항목이 바뀌는지 확인한다.
+
+## 실수 포인트
+
+- page가 1-base인지 0-base인지 섞이면 첫 항목이 밀린다.
+- 끝 page disabled가 없으면 빈 목록으로 넘어갈 수 있다.

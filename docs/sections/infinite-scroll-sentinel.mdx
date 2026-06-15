@@ -1,0 +1,45 @@
+# Infinite Scroll Sentinel
+
+## 문제
+
+IntersectionObserver로 sentinel을 관찰하고 다음 page를 append한다.
+
+## 핵심 개념
+
+- sentinel ref를 observe한다.
+- loading 중 중복 호출을 막는다.
+- unmount 시 observer를 disconnect한다.
+
+## 풀이 흐름
+
+목록 끝에 sentinel div를 두고 ref로 observer에 연결한다. callback에서는 `isIntersecting`, loading guard, hasMore를 모두 확인한 뒤 page를 늘린다. effect cleanup에서 observer를 끊어야 test와 실제 화면이 같이 안정된다.
+
+## 핵심 코드
+
+```tsx
+const loadingRef = useRef(false);
+const sentinelRef = useRef<HTMLDivElement>(null);
+
+useEffect(() => {
+  const sentinel = sentinelRef.current;
+  if (!sentinel) return;
+  const observer = new IntersectionObserver(([entry]) => {
+    if (!entry.isIntersecting || loadingRef.current) return;
+    loadingRef.current = true;
+    setCount((current) => current + 5);
+    loadingRef.current = false;
+  });
+  observer.observe(sentinel);
+  return () => observer.disconnect();
+}, []);
+```
+
+## 테스트가 보는 것
+
+- observer가 sentinel을 observe하는지 본다.
+- intersection trigger 후 다음 page 항목이 붙고 unmount 때 disconnect되는지 확인한다.
+
+## 실수 포인트
+
+- observer callback이 오래된 state를 읽으면 같은 page가 두 번 붙는다.
+- cleanup이 없으면 route 이동 뒤에도 observer가 남는다.

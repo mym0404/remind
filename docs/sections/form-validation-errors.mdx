@@ -1,0 +1,41 @@
+# Form Validation Errors
+
+## 문제
+
+제출 시 field별 에러를 만들고 첫 번째 invalid field로 focus를 옮긴다.
+
+## 핵심 개념
+
+- validation 함수를 컴포넌트 밖에 둔다.
+- 에러 메시지와 입력을 aria-describedby로 연결한다.
+- 첫 번째 invalid field에 focus를 보낸다.
+
+## 풀이 흐름
+
+제출 handler는 `preventDefault` 뒤에 현재 form 값을 검증한다. 검증 결과는 field 이름을 key로 둔 error object에 담고, 첫 번째 에러 field의 ref에 focus를 준다. 에러 문구는 id를 가진 요소로 렌더링해서 input의 설명으로 연결한다.
+
+## 핵심 코드
+
+```tsx
+type FieldErrors = Partial<Record<"name" | "email", string>>;
+
+const validateProfile = (values: { name: string; email: string }) => {
+  const errors: FieldErrors = {};
+  if (values.name.trim() === "") errors.name = "이름을 입력하세요.";
+  if (!values.email.includes("@")) errors.email = "올바른 이메일을 입력하세요.";
+  return errors;
+};
+
+if (nextErrors.name) nameRef.current?.focus();
+<input aria-invalid={Boolean(errors.name)} aria-describedby={errors.name ? "name-error" : undefined} />;
+```
+
+## 테스트가 보는 것
+
+- 빈 값과 잘못된 이메일이 field error object로 나오는지 본다.
+- submit 후 첫 번째 invalid input에 focus가 있고 ARIA 설명이 붙는지 확인한다.
+
+## 실수 포인트
+
+- placeholder를 label이나 error 설명 대신 쓰면 접근성 테스트가 실패한다.
+- 에러를 문자열 하나로만 관리하면 field별 focus와 ARIA 연결이 어렵다.

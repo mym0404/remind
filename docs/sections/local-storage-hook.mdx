@@ -1,0 +1,42 @@
+# Local Storage Hook
+
+## 문제
+
+state와 localStorage를 같은 API로 묶고 깨진 저장값을 기본값으로 복구한다.
+
+## 핵심 개념
+
+- useLocalStorage hook을 만든다.
+- 초기 mount에서 저장값을 읽는다.
+- 깨진 JSON은 기본값으로 처리한다.
+
+## 풀이 흐름
+
+초기값은 lazy initializer에서 localStorage를 읽어 만든다. 값이 바뀌면 effect에서 JSON으로 저장한다. JSON parse가 실패하면 앱을 멈추지 말고 initialValue를 돌려준다.
+
+## 핵심 코드
+
+```tsx
+const readStoredValue = <Value,>(key: string, initialValue: Value) => {
+  try {
+    const storedValue = window.localStorage.getItem(key);
+    return storedValue === null ? initialValue : (JSON.parse(storedValue) as Value);
+  } catch {
+    return initialValue;
+  }
+};
+
+const [value, setValue] = useState(() => readStoredValue(key, initialValue));
+useEffect(() => { localStorage.setItem(key, JSON.stringify(value)); }, [key, value]);
+```
+
+## 테스트가 보는 것
+
+- 저장된 값이 mount 때 input에 복원되는지 본다.
+- 입력 수정 후 localStorage 값이 함께 바뀌는지 확인한다.
+- 깨진 JSON은 fallback 값으로 처리한다.
+
+## 실수 포인트
+
+- 렌더링 때마다 localStorage를 읽으면 불필요한 비용이 생긴다.
+- parse 에러를 그대로 던지면 저장값 하나 때문에 화면 전체가 죽는다.

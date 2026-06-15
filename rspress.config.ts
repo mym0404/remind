@@ -71,8 +71,8 @@ export default defineConfig({
   base: "/remind/",
   outDir: "dist",
   lang: "ko",
-  title: "React 문법 실전 압축",
-  description: "React와 TypeScript 문법을 빠르게 확인하는 문서 사이트",
+  title: "React Practice 해답집",
+  description: "React live coding practice의 해답과 핵심 개념을 확인하는 문서 사이트",
   llms: true,
   search: {
     codeBlocks: true,
@@ -88,11 +88,11 @@ export default defineConfig({
     },
   },
   themeConfig: {
-    nav: [{ text: "문서", link: "/" }],
+    nav: [{ text: "해답", link: "/" }],
     sidebar: {
       "/": [
         {
-          text: "React 문법",
+          text: "Practice 해답",
           items: sectionSidebarItems,
         },
       ],
