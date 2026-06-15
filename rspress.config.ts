@@ -32,8 +32,16 @@ const extractMarkdownTitle = (markdown: string) =>
     ?.replace(/^#\s+/, "")
     .trim();
 
-const sectionLinksByTitle = new Map(
-  fs
+const indexMarkdown = fs.readFileSync(path.join(docsDir, "index.mdx"), "utf8");
+const indexTitle = extractMarkdownTitle(indexMarkdown);
+
+if (!indexTitle) {
+  throw new Error("Missing H1 title in docs/index.mdx");
+}
+
+const sectionLinksByTitle = new Map([
+  [indexTitle, "/"] as const,
+  ...fs
     .readdirSync(path.join(docsDir, "sections"))
     .filter((fileName) => fileName.endsWith(".mdx"))
     .map((fileName) => {
@@ -46,7 +54,7 @@ const sectionLinksByTitle = new Map(
 
       return [title, `/sections/${fileName.replace(/\.mdx$/, "")}`] as const;
     }),
-);
+]);
 
 const sectionSidebarItems = extractReferenceTitles().map((title) => {
   const link = sectionLinksByTitle.get(title);
@@ -80,9 +88,9 @@ export default defineConfig({
     },
   },
   themeConfig: {
-    nav: [{ text: "문서", link: "/sections/form-basic" }],
+    nav: [{ text: "문서", link: "/" }],
     sidebar: {
-      "/sections/": [
+      "/": [
         {
           text: "React 문법",
           items: sectionSidebarItems,

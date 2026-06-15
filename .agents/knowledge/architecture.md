@@ -14,7 +14,7 @@
 
 Rspress는 `docs/` 아래 파일 경로로 route를 만든다.
 
-- `docs/index.mdx`는 `/` route다.
+- `docs/index.mdx`는 `/` route이자 첫 문서다.
 - `docs/sections/react-state-events.mdx`는 `/sections/react-state-events` route다.
 - `docs/sections/*.mdx`는 `/sections/*` route다.
 

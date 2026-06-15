@@ -7,10 +7,9 @@ React와 TypeScript 문법을 빠르게 확인하는 Rspress 문서 사이트입
 ## 구성
 
 - `references/sections.md`: 포함해야 하는 기준 섹션 목록
-- `docs/index.mdx`: 문서 홈
+- `docs/index.mdx`: 홈 route이자 첫 문서
 - `docs/sections/*.mdx`: 섹션별 MDX 원문
 - `rspress.config.ts`: Rspress 설정
-- `scripts/validate-content.mjs`: 기준 섹션과 콘텐츠 구조 검증
 
 ## 배포 URL
 
@@ -24,6 +23,5 @@ pnpm dev
 ```
 
 ```bash
-pnpm validate:content
 pnpm build
 ```

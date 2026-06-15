@@ -6,9 +6,7 @@
   "scripts": {
     "build": "rspress build",
     "dev": "rspress dev",
-    "preview": "rspress preview",
-    "test": "node --test scripts/*.test.mjs",
-    "validate:content": "node scripts/validate-content.mjs"
+    "preview": "rspress preview"
   },
   "dependencies": {
     "@rspress/core": "^2.0.14"

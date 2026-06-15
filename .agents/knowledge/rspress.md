@@ -42,4 +42,4 @@ MDX는 Markdown 위에서 React component를 쓸 수 있는 형식이다. 이 re
 
 ## Routing
 
-Rspress는 `docs/` 아래 파일 위치로 route를 만든다. `docs/index.mdx`는 홈이고, `docs/sections/*.mdx`는 `/sections/*` 문서다.
+Rspress는 `docs/` 아래 파일 위치로 route를 만든다. `docs/index.mdx`는 홈 route이자 첫 문서이고, `docs/sections/*.mdx`는 `/sections/*` 문서다.

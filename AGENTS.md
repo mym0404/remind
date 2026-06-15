@@ -2,14 +2,13 @@
 
 ## Project Overview
 
-React와 TypeScript 문법을 빠르게 확인하는 Rspress 문서 사이트다. Rspress 설정과 문서 소스, 기준 문서, 검증 스크립트가 분리되어 있다.
+React와 TypeScript 문법을 빠르게 확인하는 Rspress 문서 사이트다. Rspress 설정, 문서 소스, 기준 문서가 분리되어 있다.
 
 ## Tech Stack
 
 - 런타임은 `mise`로 고정한 Node 24.16.0과 pnpm 10.33.0을 쓴다.
 - 사이트 생성기는 Rspress 2를 쓴다.
 - 문서 본문은 MDX를 쓴다.
-- 검증 스크립트는 Node 내장 test runner와 plain ESM 스크립트를 쓴다.
 
 ## Project Structure
 
@@ -18,12 +17,9 @@ AGENTS.md                  # repo-local agent router
 .agents/knowledge/         # evergreen agent knowledge
 .mise.toml                 # Node/pnpm version pin
 docs/
-  index.mdx                # 문서 홈
+  index.mdx                # 홈 route이자 첫 문서
   sections/                # MDX 문서 소스
 references/sections.md     # 문서 목록과 검증 기준
-scripts/
-  validate-content.mjs     # 문서 소스 검증
-  validate-content.test.mjs
 rspress.config.ts          # Rspress root, base, sidebar, search, llms 설정
 ```
 
@@ -33,8 +29,6 @@ Rspress는 `docs/`를 문서 root로 읽고 conventional route를 만든다. 자
 
 ## Verification Commands
 
-- `pnpm validate:content`: `references/sections.md`와 `docs/sections/*.mdx`의 일관성을 검증한다.
-- `pnpm test`: 검증 스크립트 helper의 unit test를 실행한다.
 - `pnpm build`: Rspress production build와 llms 산출물을 만든다.
 - `pnpm dev`: 로컬 dev server를 띄워 브라우저에서 홈, sidebar, 검색, 문서 이동을 확인한다.
 
