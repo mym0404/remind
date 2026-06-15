@@ -4,10 +4,10 @@
 
 ## README Banner
 
-- README 상단 이미지는 `public/readme-banner.png`다.
+- README 상단 이미지는 `public/og-image.png`다.
 - 배너의 현재 텍스트는 `Remind`와 `React Live Coding in your mind`다.
-- 배너는 어두운 navy grid 배경, 오른쪽 neon purple/cyan orbital shape, 왼쪽 흰색 타이포그래피 구성을 쓴다.
-- README에서 이미지는 `![Remind](./public/readme-banner.png)`로 참조한다.
+- 이미지는 어두운 graphite grid 배경, 오른쪽 warm orange/lime orbital shape, 왼쪽 흰색 타이포그래피 구성을 쓴다.
+- README에서 이미지는 `![Remind](./public/og-image.png)`로 참조한다.
 
 ## Practice UI
 
@@ -18,5 +18,5 @@
 
 ## Verification
 
-- 배너 변경 후에는 `public/readme-banner.png`를 직접 열어 텍스트와 배경이 의도에 맞는지 확인한다.
+- 배너 변경 후에는 `public/og-image.png`를 직접 열어 텍스트와 배경이 의도에 맞는지 확인한다.
 - practice UI 변경 후에는 해당 package의 `pnpm --filter <practice-package-name> dev`로 로컬 화면을 확인한다.

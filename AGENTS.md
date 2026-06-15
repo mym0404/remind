@@ -22,7 +22,7 @@ docs/
   sections/                # MDX 문서 소스
 practices/                 # CoderPad형 React + TypeScript practice packages
 references/sections.md     # 문서 목록과 검증 기준
-public/readme-banner.png   # README와 Open Graph 용도 배너 이미지
+public/og-image.png        # README와 Open Graph 용도 이미지
 rspress.config.ts          # Rspress root, base, sidebar, search, llms 설정
 scripts/validate-codeblocks.mjs # MDX 코드블록 재귀 파싱 검증
 ```

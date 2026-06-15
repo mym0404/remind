@@ -26,7 +26,7 @@
 - `practices/coverage.md`: practice set의 React 개념 커버리지 매트릭스다.
 - `scripts/validate-codeblocks.mjs`: `docs/**/*.mdx` 코드블록 문법을 재귀로 검사한다.
 - `public/`: README와 Open Graph 용도 asset이 있는 위치다.
-- `public/readme-banner.png`: README 상단 배너 이미지다.
+- `public/og-image.png`: README와 Open Graph 용도 이미지다.
 - `.agents/knowledge/`: agent용 evergreen repository knowledge가 있는 위치다.
 - `.agents/knowledge/content-quality.md`: 문서 본문을 고칠 때 적용할 품질 기준이다.
 - `dist/`: `pnpm build`가 생성하는 Rspress output이며 git에서 무시한다.
