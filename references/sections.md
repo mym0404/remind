@@ -2,29 +2,6 @@
 
 이 파일은 사이트에 반드시 포함할 섹션과 세부 체크 항목의 기준이다. 번호나 우선순위 라벨은 쓰지 않고, 타이틀 자체를 기준으로 검증한다. 각 섹션 문서는 `docs/sections/*.mdx`에 둔다.
 
-## React 상태와 이벤트
-
-- `useState`로 입력값, 선택값, 열림/닫힘 상태를 관리할 수 있는가?
-- 배열 상태에서 추가/삭제/수정/토글을 불변 방식으로 처리할 수 있는가?
-- 객체 상태를 spread로 안전하게 업데이트할 수 있는가?
-- `onChange`, `onClick`, `onSubmit` 이벤트를 구현할 수 있는가?
-- `React.ChangeEvent<HTMLInputElement>` 타입을 사용할 수 있는가?
-- `React.FormEvent<HTMLFormElement>` 타입을 사용할 수 있는가?
-- props callback을 적절한 시점에 호출할 수 있는가?
-- `useRef`로 DOM element를 참조할 수 있는가?
-- `useEffect`에서 event listener를 등록하고 cleanup할 수 있는가?
-
-## 검색 / 필터 / 정렬 리스트
-
-- 원본 데이터와 화면 표시 데이터를 분리할 수 있는가?
-- 검색어를 controlled input으로 관리할 수 있는가?
-- 검색어, 필터, 정렬 조건을 별도 state로 둘 수 있는가?
-- `filter`, `sort`, `map`을 조합해 리스트를 렌더링할 수 있는가?
-- 정렬 시 원본 배열을 mutate하지 않고 복사 후 정렬할 수 있는가?
-- 표시 데이터를 `useMemo`로 계산할 수 있는가?
-- 결과가 없을 때 empty state를 렌더링할 수 있는가?
-- 검색/필터/정렬 조건이 늘어났을 때 상태 구조를 정리할 수 있는가?
-
 ## Form 구현
 
 - input value를 React state로 관리할 수 있는가?
@@ -50,6 +27,15 @@
 - validation 실패 시 첫 번째 invalid field로 focus를 이동시킬 수 있는가?
 - 클릭 가능한 요소에 `div` 대신 `button`을 사용할 수 있는가?
 - `button`의 `type="button"`과 `type="submit"`을 구분할 수 있는가?
+
+## 이벤트 버블링 / 캡처링 / stopPropagation
+
+- React 이벤트가 기본적으로 bubble phase에서 처리된다는 점을 설명할 수 있는가?
+- `onClickCapture`로 capture phase에서 먼저 이벤트를 볼 수 있는가?
+- `event.stopPropagation()`이 상위 React handler 호출을 막는다는 점을 설명할 수 있는가?
+- backdrop, menu, nested button에서 전파 차단이 필요한 지점을 구분할 수 있는가?
+- 분석/로그용 capture handler와 동작 제어용 bubble handler를 분리할 수 있는가?
+- `stopPropagation`을 남발하면 상위 keyboard shortcut, analytics, outside click 처리가 끊길 수 있음을 이해하는가?
 
 ## 비동기 데이터 로딩
 

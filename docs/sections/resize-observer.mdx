@@ -15,8 +15,6 @@ callback 안에서 DOM read와 write를 바로 섞으면 ResizeObserver loop 경
 ## 바로 쓰는 코드
 
 ```tsx title="useElementSize.ts"
-
-
 const emptySize = {
   height: 0,
   width,
@@ -98,7 +96,6 @@ const useElementSize = () => {
 ```
 
 ```tsx title="ToolbarMenu.tsx"
-
 const getLayoutMode = (width) =>
   width < 480 ? "compact" : "regular";
 

@@ -15,8 +15,6 @@ DOM 크기를 읽은 직후 style을 바꾸는 코드는 layout thrashing을 만
 계산 가능한 값은 state로 두지 않는다. 캐시와 callback 고정은 실제로 참조가 의미 있는 경계에만 둔다.
 
 ```tsx title="PerformanceTaskList.tsx"
-
-
 const initialTasks = [
   { id: "task-1", title, done,
   // ...
@@ -85,7 +83,6 @@ const TaskRow = memo(
 자주 발생하는 이벤트는 빈도를 줄인다. Layout read/write는 섞지 않는다.
 
 ```tsx title="MeasuredPanel.tsx"
-
 const MeasuredPanel = () => {
   const panelRef = useRef(null);
   const [width, setWidth] = useState(0);

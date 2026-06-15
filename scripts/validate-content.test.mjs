@@ -12,14 +12,14 @@ describe("content validation helpers", () => {
   it("extracts only 기준 섹션 titles and ignores 검증 기준", () => {
     const markdown = [
       "# 기준 섹션",
-      "## React 상태와 이벤트",
+      "## Form 구현",
       "## Suspense",
       "## 검증 기준",
       "- React 공식 문서 확인",
     ].join("\n");
 
     assert.deepEqual(extractSectionTitles(markdown), [
-      "React 상태와 이벤트",
+      "Form 구현",
       "Suspense",
     ]);
   });
@@ -32,7 +32,7 @@ describe("content validation helpers", () => {
   });
 
   it("extracts markdown H1 title", () => {
-    assert.equal(extractMarkdownTitle("# React 상태와 이벤트\n\n본문"), "React 상태와 이벤트");
+    assert.equal(extractMarkdownTitle("# Form 구현\n\n본문"), "Form 구현");
   });
 
   it("extracts visible markdown links", () => {

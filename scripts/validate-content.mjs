@@ -167,12 +167,12 @@ export const validateContent = ({ rootDir = ROOT_DIR } = {}) => {
   const files = listSectionFiles(sectionDir);
   const errors = [];
 
-  if (expectedTitles.length !== 35) {
-    errors.push(`기준 섹션은 35개여야 합니다. 현재 ${expectedTitles.length}개입니다.`);
+  if (expectedTitles.length !== 34) {
+    errors.push(`기준 섹션은 34개여야 합니다. 현재 ${expectedTitles.length}개입니다.`);
   }
 
-  if (files.length !== 35) {
-    errors.push(`MDX 섹션 파일은 35개여야 합니다. 현재 ${files.length}개입니다.`);
+  if (files.length !== 34) {
+    errors.push(`MDX 섹션 파일은 34개여야 합니다. 현재 ${files.length}개입니다.`);
   }
 
   const sectionResults = files.map((filePath) =>

@@ -19,8 +19,6 @@ data fetching에 쓰려면 framework, router loader, cache처럼 안정적인 Pr
 Promise는 boundary 밖에서 만들고, 안쪽 컴포넌트는 `use()`로 읽는다.
 
 ```tsx title="ProfilePage.tsx"
-
-
 const ProfileHeader = ({ userPromise }) => {
   const user = use(userPromise); // [!code highlight]
 

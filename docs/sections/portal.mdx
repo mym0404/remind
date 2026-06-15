@@ -15,7 +15,6 @@ Portal은 DOM 위치만 바꾼다. focus trap, Escape 닫기, 스크롤 잠금, 
 대상 node가 없으면 mount 후 만들고, 준비 전에는 렌더링하지 않는다.
 
 ```tsx title="Portal.tsx"
-
 const PORTAL_ROOT_ID = "portal-root";
 
 const usePortalTarget = (targetId) => {
@@ -58,7 +57,6 @@ const Portal = ({
 ```
 
 ```tsx title="InviteModal.tsx"
-
 const PortalModalExample = () => {
   const [isOpen, setIsOpen] = useState(false);
 

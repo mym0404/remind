@@ -13,8 +13,6 @@ React Query는 `loading`, `error`, `cache`, `refetch`, mutation 후 동기화를
 앱을 `QueryClientProvider`로 감싸고, 데이터를 구분하는 값을 `queryKey`에 넣는다.
 
 ```tsx title="TodoList.tsx"
-
-
 const TODO_STALE_TIME = 30_000;
 
 const queryClient = new QueryClient({
@@ -137,8 +135,6 @@ const App = () => (
 라이브러리 없이 만들 때도 cache key, 저장 시각, stale 판단, 강제 refetch를 분리한다.
 
 ```ts title="todo-cache.ts"
-
-
 const TODO_STALE_TIME = 30_000;
 const todoStatuses = ["all", "open", "done"];
 const todoCache = {};

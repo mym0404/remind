@@ -9,8 +9,6 @@ Toast, Modal, 로그인 사용자, 테마처럼 앱 단위 API가 필요할 때 
 ## 바로 쓰는 코드
 
 ```tsx title="ModalProvider.tsx"
-
-
 const ModalContext = createContext(undefined);
 
 const ModalProvider = ({ children }) => {
@@ -62,7 +60,6 @@ const ConfirmDialog = ({
 ```
 
 ```tsx title="DeleteButton.tsx"
-
 const DeleteButton = () => {
   const { openConfirm } = useModal();
 
@@ -80,7 +77,6 @@ const DeleteButton = () => {
 ```
 
 ```tsx title="App.tsx"
-
 const App = () => {
   return (
     <ModalProvider>

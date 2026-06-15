@@ -13,7 +13,6 @@ Debounce는 요청 시작만 늦춘다. 이미 시작된 요청은 `AbortControl
 ## 바로 쓰는 코드
 
 ```tsx title="useDebounce.ts"
-
 const useDebounce = <T,>(value, delay) => {
   const [debouncedValue, setDebouncedValue] = useState(value);
 
@@ -33,8 +32,6 @@ const useDebounce = <T,>(value, delay) => {
 ```
 
 ```tsx title="SearchPage.tsx"
-
-
 const SearchPage = () => {
   const [query, setQuery] = useState("");
   const debouncedQuery = useDebounce(query.trim(), 400); // [!code highlight]

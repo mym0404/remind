@@ -13,7 +13,6 @@ Controlled 여부는 mount 이후 바뀌면 안 된다. `undefined`에서 문자
 ## 바로 쓰는 코드
 
 ```tsx title="useControllableState.ts"
-
 const useControllableState = <Value,>({
   value,
   defaultValue,
@@ -40,8 +39,6 @@ const useControllableState = <Value,>({
 ```
 
 ```tsx title="TextInput.tsx"
-
-
 const TextInput = ({ value, defaultValue = "", onChange }) => {
   const input = useControllableState({
     value,
@@ -59,8 +56,6 @@ const TextInput = ({ value, defaultValue = "", onChange }) => {
 ```
 
 ```tsx title="Modal.tsx"
-
-
 const Modal = ({ open, defaultOpen = false, onOpenChange, children }) => {
   const modal = useControllableState({
     value: open, // [!code highlight]

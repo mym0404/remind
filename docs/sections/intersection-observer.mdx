@@ -13,8 +13,6 @@
 observer 생성과 cleanup은 hook으로 모은다. DOM node가 조건부 렌더링으로 늦게 생기거나 바뀐다면 callback ref나 별도 state로 다시 observe한다.
 
 ```tsx title="useIntersectionObserver.ts"
-
-
 const useIntersectionObserver = <T extends Element>({
   enabled = true,
   onChange,
@@ -63,8 +61,6 @@ const useIntersectionObserver = <T extends Element>({
 infinite scroll은 목록 끝 sentinel만 관찰한다. 중복 요청 방지는 state보다 ref가 빠르고 확실하다.
 
 ```tsx title="ProductList.tsx"
-
-
 const fetchProductsPage = async ({ page, signal }) => {
   // ...
 };

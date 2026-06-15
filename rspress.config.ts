@@ -80,7 +80,7 @@ export default defineConfig({
     },
   },
   themeConfig: {
-    nav: [{ text: "문서", link: "/sections/react-state-events" }],
+    nav: [{ text: "문서", link: "/sections/form-basic" }],
     sidebar: {
       "/sections/": [
         {

@@ -11,8 +11,6 @@
 클라이언트 배열은 현재 page를 보정한 뒤 자른다.
 
 ```tsx title="LocalOrderList.tsx"
-
-
 const pageSize = 10;
 
 const LocalOrderList = ({ orders }) => {
@@ -57,8 +55,6 @@ const LocalOrderList = ({ orders }) => {
 서버 pagination은 page 변경마다 다시 요청한다. 중복 요청과 stale response만 막으면 된다.
 
 ```tsx title="ServerOrderList.tsx"
-
-
 const pageSize = 20;
 
 const fetchOrdersPage = async ({
