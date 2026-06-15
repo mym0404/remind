@@ -19,6 +19,7 @@ AGENTS.md                  # repo-local agent router
 docs/
   index.mdx                # 홈 route이자 첫 문서
   sections/                # MDX 문서 소스
+practices/                 # CoderPad형 React + TypeScript practice packages
 references/sections.md     # 문서 목록과 검증 기준
 rspress.config.ts          # Rspress root, base, sidebar, search, llms 설정
 scripts/validate-codeblocks.mjs # MDX 코드블록 재귀 파싱 검증
@@ -32,6 +33,7 @@ Rspress는 `docs/`를 문서 root로 읽고 conventional route를 만든다. 자
 
 - `pnpm validate:codeblocks`: `docs/**/*.mdx`의 JS/TS/JSX/TSX 코드블록 문법을 재귀로 검사한다.
 - `pnpm build`: Rspress production build와 llms 산출물을 만든다.
+- `pnpm -r --filter './practices/*' build`: 모든 practice package의 Vite build를 실행한다.
 - `pnpm dev`: 로컬 dev server를 띄워 브라우저에서 홈, sidebar, 검색, 문서 이동을 확인한다.
 
 ## Knowledge Router

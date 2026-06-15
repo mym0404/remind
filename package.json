@@ -10,15 +10,15 @@
     "validate:codeblocks": "node scripts/validate-codeblocks.mjs"
   },
   "dependencies": {
-    "@rspress/core": "^2.0.14"
+    "@rspress/core": "catalog:"
   },
   "devDependencies": {
-    "@babel/parser": "^7.29.7",
-    "@shikijs/transformers": "^4.2.0",
-    "@types/node": "^22.8.1",
-    "@types/react": "^19.2.15",
-    "@types/react-dom": "^19.2.3",
-    "react": "^19.2.6",
-    "react-dom": "^19.2.6"
+    "@babel/parser": "catalog:",
+    "@shikijs/transformers": "catalog:",
+    "@types/node": "catalog:",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "react": "catalog:",
+    "react-dom": "catalog:"
   }
 }

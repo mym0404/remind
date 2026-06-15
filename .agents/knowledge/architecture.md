@@ -21,3 +21,7 @@ Rspress는 `docs/` 아래 파일 경로로 route를 만든다.
 ## Sidebar
 
 Sidebar는 `rspress.config.ts`에서 만든다. 설정 파일은 `references/sections.md`와 `docs/sections/*.mdx`를 읽어 sidebar item을 만든다.
+
+## Practice Workspace
+
+`practices/*`는 Rspress 사이트와 분리된 pnpm workspace package다. 각 package는 Vite React 앱이며 CoderPad형 starter, 한국어 README, Vitest 채점 테스트를 함께 둔다.

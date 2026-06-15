@@ -19,6 +19,11 @@
 - `docs/index.mdx`: 사이트 홈 route이자 첫 문서의 원본이다.
 - `docs/sections/`: 개별 MDX 문서 원본이 있는 위치다.
 - `references/`: 문서 목록 기준이 있는 위치다.
+- `practices/`: CoderPad형 React + TypeScript practice package workspace다.
+- `practices/*/README.md`: practice별 한국어 문제 지시와 채점 기준이다.
+- `practices/*/src/App.tsx`: practice starter 코드의 중심 파일이다.
+- `practices/*/src/App.test.tsx`: practice 채점용 Vitest 테스트다.
+- `practices/coverage.md`: practice set의 React 개념 커버리지 매트릭스다.
 - `scripts/validate-codeblocks.mjs`: `docs/**/*.mdx` 코드블록 문법을 재귀로 검사한다.
 - `public/`: README 등 repository asset이 있는 위치다.
 - `.agents/knowledge/`: agent용 evergreen repository knowledge가 있는 위치다.
