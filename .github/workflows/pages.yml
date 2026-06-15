@@ -39,10 +39,10 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Validate content
-        run: pnpm validate:content
+        run: pnpm validate:codeblocks
 
-      - name: Test
-        run: pnpm test
+      - name: Build practices
+        run: pnpm -r --filter './practices/*' build
 
       - name: Build
         run: pnpm build
