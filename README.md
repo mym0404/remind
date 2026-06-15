@@ -23,5 +23,6 @@ pnpm dev
 ```
 
 ```bash
+pnpm validate:codeblocks
 pnpm build
 ```

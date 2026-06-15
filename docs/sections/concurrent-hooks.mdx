@@ -63,7 +63,7 @@ const ConcurrentTodoList = () => {
     state.todos,
     // Must stay pure; React may replay this update.
     (currentTodos, todo) => [
-      { id: todo.id, title, status,
+      { id: todo.id, title: todo.title, status: "saving" },
       ...currentTodos,
     ],
   );

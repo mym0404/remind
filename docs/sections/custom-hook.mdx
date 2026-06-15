@@ -35,7 +35,7 @@ const useFetch = <T,>({
 
   useEffect(() => {
     if (!enabled) {
-      setState((current) => ({ ...current, loading));
+      setState((current) => ({ ...current, loading: false }));
       return;
     }
 
@@ -43,17 +43,20 @@ const useFetch = <T,>({
     const controller = new AbortController(); // [!code highlight]
 
     const load = async () => {
-      setState((current) => ({ ...current, error, loading));
+      setState((current) => ({ ...current, error: undefined, loading: true }));
 
       try {
-        const response = await fetch(url, { ...options, signal); // [!code highlight]
+        const response = await fetch(url, {
+          ...options,
+          signal: controller.signal,
+        }); // [!code highlight]
 
         if (!response.ok) {
           throw new Error(`Request failed: ${response.status}`);
         }
 
         const data = (await response.json()) as T;
-        setState({ data, error, loading);
+        setState({ data, error: undefined, loading: false });
       } catch (error) {
         if (error instanceof DOMException && error.name === "AbortError") {
           return;
@@ -62,7 +65,7 @@ const useFetch = <T,>({
         setState({
           data: undefined,
           error,
-          loading,
+          loading: false,
         });
       }
     };
@@ -179,7 +182,7 @@ const UserSearch = () => {
     url, // [!code highlight]
   });
 
-  useClickOutside({ enabled: isOpen, onClickOutside, ref); // [!code highlight]
+  useClickOutside({ enabled: isOpen, onClickOutside: closePanel, ref: panelRef }); // [!code highlight]
 
   // ...
 

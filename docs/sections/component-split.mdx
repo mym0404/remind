@@ -31,7 +31,7 @@ const useTodoList = () => {
   const toggleTodo = (id) => {
     setTodos((currentTodos) =>
       currentTodos.map((todo) =>
-        todo.id === id ? { ...todo, done, // [!code highlight]
+        todo.id === id ? { ...todo, done: !todo.done } : todo, // [!code highlight]
       ),
     );
   };

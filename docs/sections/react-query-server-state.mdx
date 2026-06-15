@@ -26,7 +26,7 @@ const queryClient = new QueryClient({
 
 const todoKeys = {
   all: ["todos"] as const,
-  list) => [...todoKeys.all, { status }] as const, // [!code highlight]
+  list: (status) => [...todoKeys.all, { status }] as const, // [!code highlight]
 };
 
 const fetchTodos = async (status) => {
@@ -50,8 +50,8 @@ const createTodo = async (title) => {
 const toggleTodo = async (todo) => {
   const response = await fetch(`/api/todos/${todo.id}`, {
     method: "PATCH",
-    headers,
-    body),
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ done: !todo.done }),
   });
   // ...
 
@@ -64,12 +64,12 @@ const TodoList = ({ status }) => {
 
   const todosQuery = useQuery({
     queryKey,
-    queryFn) => fetchTodos(status),
+    queryFn: () => fetchTodos(status),
   });
 
   const createTodoMutation = useMutation({
     mutationFn: createTodo,
-    onSuccess) => {
+    onSuccess: () => {
       // New todos may affect every filtered list.
       void queryClient.invalidateQueries({ queryKey: todoKeys.all }); // [!code highlight]
     },
@@ -77,7 +77,7 @@ const TodoList = ({ status }) => {
 
   const toggleTodoMutation = useMutation({
     mutationFn: toggleTodo,
-    onMutate) => {
+    onMutate: async (todo) => {
       await queryClient.cancelQueries({ queryKey });
 
       // Keep the previous cache for rollback.
@@ -85,18 +85,18 @@ const TodoList = ({ status }) => {
 
       queryClient.setQueryData<Todo[]>(queryKey, (oldTodos = []) =>
         oldTodos.map((item) =>
-          item.id === todo.id ? { ...item, done, // [!code highlight]
+          item.id === todo.id ? { ...item, done: !item.done } : item, // [!code highlight]
         ),
       );
 
       return { previousTodos }; // [!code highlight]
     },
-    onError, _todo, context) => {
+    onError: (_error, _todo, context) => {
       if (context?.previousTodos) {
         queryClient.setQueryData(queryKey, context.previousTodos); // [!code highlight]
       }
     },
-    onSettled) => {
+    onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: todoKeys.all });
     },
   });

@@ -13,7 +13,7 @@
 ```tsx title="ContactForm.tsx"
 // ...
 
-const describedBy = (ids)[]) =>
+const describedBy = (ids) =>
   ids.filter((id): id is string => Boolean(id)).join(" ") || undefined;
 
 const validate = (values) => {
@@ -21,7 +21,7 @@ const validate = (values) => {
 };
 
 const ContactForm = () => {
-  const [values, setValues] = useState({ email: "", message);
+  const [values, setValues] = useState({ email: "", message: "" });
   const [errors, setErrors] = useState({});
   const emailRef = useRef(null);
   const messageRef = useRef(null);
@@ -32,9 +32,9 @@ const ContactForm = () => {
   const messageErrorId = useId();
 
   const updateEmail = ({ target }) =>
-    setValues((current) => ({ ...current, email));
+    setValues((current) => ({ ...current, email: target.value }));
   const updateMessage = ({ target }) =>
-    setValues((current) => ({ ...current, message));
+    setValues((current) => ({ ...current, message: target.value }));
   const resetForm = () => {
     // ...
   };

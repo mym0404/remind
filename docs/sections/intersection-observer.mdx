@@ -90,7 +90,7 @@ const ProductList = () => {
     try {
       const page = await fetchProductsPage({
         page: nextPageRef.current,
-        signal,
+        signal: controller.signal,
       });
 
       setProducts((current) => [...current, ...page.items]);
@@ -107,7 +107,7 @@ const ProductList = () => {
 
   useIntersectionObserver({
     enabled: hasMore,
-    onChange) => {
+    onChange: (entry) => {
       if (entry.isIntersecting) {
         void loadNextPage(); // [!code highlight]
       }
@@ -115,8 +115,8 @@ const ProductList = () => {
     // Start before the sentinel is actually visible.
     rootMargin: "160px 0px", // [!code highlight]
     rootRef,
-    targetRef,
-    threshold,
+    targetRef: sentinelRef,
+    threshold: 0,
   });
 
   useEffect(() => {
@@ -156,7 +156,7 @@ const LazyProfileImage = ({
 
   useIntersectionObserver({
     enabled: !shouldLoad,
-    onChange) => {
+    onChange: (entry) => {
       if (entry.isIntersecting) {
         setShouldLoad(true); // [!code highlight]
       }
@@ -164,7 +164,7 @@ const LazyProfileImage = ({
     // Fetch before the image enters the viewport.
     rootMargin: "320px 0px", // [!code highlight]
     targetRef: imageRef,
-    threshold,
+    threshold: 0,
   });
 
   return <img ref={imageRef} src={shouldLoad ? src : undefined} alt={alt} />;
@@ -180,13 +180,13 @@ const AccountMenu = () => {
 
   useIntersectionObserver({
     enabled: isOpen,
-    onChange) => {
+    onChange: (entry) => {
       if (!entry.isIntersecting) {
         setIsOpen(false); // [!code highlight]
       }
     },
-    targetRef,
-    threshold,
+    targetRef: triggerRef,
+    threshold: 0,
   });
 
   return (

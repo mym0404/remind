@@ -27,18 +27,18 @@ const STRATEGY = "fixed";
 
 const oppositePlacement = {
   top: "bottom",
-  bottom,
-  left,
-  right,
+  bottom: "top",
+  left: "right",
+  right: "left",
 };
 
 const toRect = (rect) => ({
   top: rect.top,
-  right,
-  bottom,
-  left,
-  width,
-  height,
+  right: rect.right,
+  bottom: rect.bottom,
+  left: rect.left,
+  width: rect.width,
+  height: rect.height,
 });
 
 const getBoundedClipRect = (scrollContainer) => {
@@ -62,8 +62,8 @@ const getBoundedClipRect = (scrollContainer) => {
     right,
     bottom,
     left,
-    width, right - left),
-    height, bottom - top),
+    width: right - left,
+    height: bottom - top,
   };
 };
 
@@ -115,7 +115,7 @@ const computeFloatingPosition = ({
 
   return {
     top: shiftedPosition.top + scrollOffset.top,
-    left,
+    left: shiftedPosition.left + scrollOffset.left,
     placement,
   };
 };
@@ -161,11 +161,11 @@ const PopoverPositionExample = () => {
     setPosition(
       computeFloatingPosition({
         preferredPlacement: PREFERRED_PLACEMENT,
-        triggerRect)), // [!code highlight]
+        triggerRect: toRect(triggerElement.getBoundingClientRect()), // [!code highlight]
         floatingRect: toRect(floatingElement.getBoundingClientRect()), // [!code highlight]
         clipRect,
-        offset,
-        strategy,
+        offset: OFFSET,
+        strategy: STRATEGY,
       }),
     );
   }, [isOpen]);
@@ -202,8 +202,8 @@ const PopoverPositionExample = () => {
               data-placement={position?.placement}
               style={{
                 position: STRATEGY,
-                top,
-                left,
+                top: position?.top,
+                left: position?.left,
                 // Hide the first paint before measurement.
                 visibility: position === undefined ? "hidden" : "visible", // [!code highlight]
                 zIndex: 1000,

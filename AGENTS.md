@@ -21,6 +21,7 @@ docs/
   sections/                # MDX 문서 소스
 references/sections.md     # 문서 목록과 검증 기준
 rspress.config.ts          # Rspress root, base, sidebar, search, llms 설정
+scripts/validate-codeblocks.mjs # MDX 코드블록 재귀 파싱 검증
 ```
 
 ## Runtime And Architecture
@@ -29,6 +30,7 @@ Rspress는 `docs/`를 문서 root로 읽고 conventional route를 만든다. 자
 
 ## Verification Commands
 
+- `pnpm validate:codeblocks`: `docs/**/*.mdx`의 JS/TS/JSX/TSX 코드블록 문법을 재귀로 검사한다.
 - `pnpm build`: Rspress production build와 llms 산출물을 만든다.
 - `pnpm dev`: 로컬 dev server를 띄워 브라우저에서 홈, sidebar, 검색, 문서 이동을 확인한다.
 

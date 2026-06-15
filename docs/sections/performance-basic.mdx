@@ -16,7 +16,7 @@ DOM 크기를 읽은 직후 style을 바꾸는 코드는 layout thrashing을 만
 
 ```tsx title="PerformanceTaskList.tsx"
 const initialTasks = [
-  { id: "task-1", title, done,
+  { id: "task-1", title: "프로필 저장", done: false },
   // ...
 ];
 
@@ -37,7 +37,7 @@ const PerformanceTaskList = () => {
   const toggleTask = useCallback((id) => { // [!code highlight]
     setTasks((currentTasks) =>
       currentTasks.map((task) =>
-        task.id === id ? { ...task, done,
+        task.id === id ? { ...task, done: !task.done } : task,
       ),
     );
   }, []);
@@ -122,7 +122,7 @@ const MeasuredPanel = () => {
   );
 };
 
-const throttle = (callback) => void, wait) => {
+const throttle = (callback, wait) => {
   // ...
 
   return () => {

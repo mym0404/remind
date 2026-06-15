@@ -63,7 +63,7 @@ const fetchOrdersPage = async ({
 }) => {
   const params = new URLSearchParams({
     page: String(page),
-    pageSize),
+    pageSize: String(pageSize),
   });
   const response = await fetch(`/api/orders?${params.toString()}`, { signal });
 

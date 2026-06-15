@@ -37,7 +37,7 @@ const UserAutocomplete = () => {
   const [activeIndex, setActiveIndex] = useState();
   const [suggestionsState, setSuggestionsState] = useState({
     status: "idle",
-    items,
+    items: [],
   });
   const trimmedValue = value.trim();
   const debouncedValue = useDebounce(trimmedValue, 300);
@@ -55,7 +55,7 @@ const UserAutocomplete = () => {
       selectedUserName === debouncedValue // [!code highlight]
     ) {
       // Do not reopen the list right after selecting the same value.
-      setSuggestionsState({ status: "idle", items);
+      setSuggestionsState({ status: "idle", items: [] });
       setIsOpen(false);
       setActiveIndex(undefined);
       return;
@@ -64,7 +64,7 @@ const UserAutocomplete = () => {
     const controller = new AbortController(); // [!code highlight]
 
     const loadSuggestions = async () => {
-      setSuggestionsState({ status: "loading", items);
+      setSuggestionsState({ status: "loading", items: [] });
       setIsOpen(true);
       setActiveIndex(undefined);
 
@@ -90,8 +90,8 @@ const UserAutocomplete = () => {
 
         setSuggestionsState({
           status: "error",
-          items,
-          message,
+          items: [],
+          message: "추천 목록을 불러오지 못했습니다.",
         });
         setIsOpen(true);
         setActiveIndex(undefined);

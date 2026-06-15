@@ -37,6 +37,8 @@ MDX는 Markdown 위에서 React component를 쓸 수 있는 형식이다. 이 re
 - 외부 component가 필요하면 MDX 상단에서 import한다.
 - 코드 블록은 fenced code block을 쓴다.
 - 중요한 코드 라인은 `// [!code highlight]`로 표시한다.
+- 줄임표는 `// ...`나 `{/* ... */}`처럼 파서가 읽을 수 있는 주석 형태로만 둔다.
+- TS/TSX/JS/JSX 코드블록은 `pnpm validate:codeblocks`를 통과해야 한다.
 - Custom container는 `:::tip`, `:::info`, `:::warning`, `:::danger`, `:::details` 형식을 쓴다.
 - 문서 내부 링크는 Rspress route 경로를 쓴다. 예: `/sections/react-state-events`
 

@@ -17,7 +17,7 @@ callback 안에서 DOM read와 write를 바로 섞으면 ResizeObserver loop 경
 ```tsx title="useElementSize.ts"
 const emptySize = {
   height: 0,
-  width,
+  width: 0,
 };
 
 const isSameSize = (left, right) =>
@@ -36,7 +36,7 @@ const readBoxSize = (entry) => {
 
   return {
     height: entry.contentRect.height,
-    width,
+    width: entry.contentRect.width,
   };
 };
 
@@ -100,11 +100,11 @@ const getLayoutMode = (width) =>
   width < 480 ? "compact" : "regular";
 
 const ToolbarMenu = () => {
-  const { ref: containerRef, size=
+  const { ref: containerRef, size: containerSize } =
     useElementSize();
-  const { ref: triggerRef, size=
+  const { ref: triggerRef, size: triggerSize } =
     useElementSize();
-  const { ref: panelRef, size=
+  const { ref: panelRef, size: panelSize } =
     useElementSize();
 
   const layoutModeRef = useRef("compact");
@@ -136,7 +136,7 @@ const ToolbarMenu = () => {
         style={{
           left: Math.max(0, triggerSize.width - panelSize.width), // [!code highlight]
           position: "absolute",
-          top, // [!code highlight]
+          top: triggerSize.height, // [!code highlight]
         }}
       >
         {/* ... */}

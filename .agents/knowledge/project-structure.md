@@ -19,6 +19,7 @@
 - `docs/index.mdx`: 사이트 홈 route이자 첫 문서의 원본이다.
 - `docs/sections/`: 개별 MDX 문서 원본이 있는 위치다.
 - `references/`: 문서 목록 기준이 있는 위치다.
+- `scripts/validate-codeblocks.mjs`: `docs/**/*.mdx` 코드블록 문법을 재귀로 검사한다.
 - `public/`: README 등 repository asset이 있는 위치다.
 - `.agents/knowledge/`: agent용 evergreen repository knowledge가 있는 위치다.
 - `.agents/knowledge/content-quality.md`: 문서 본문을 고칠 때 적용할 품질 기준이다.

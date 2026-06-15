@@ -394,3 +394,4 @@
 - WAI-ARIA Authoring Practices에서 combobox, dialog, menu, tabs 패턴을 확인한다.
 - npm 라이브러리 사용이 허용될 경우 문서를 보고 최소 API만 적용한다.
 - 검색한 코드를 그대로 복붙하지 않고 현재 문제의 상태 구조와 타입에 맞게 바꾼다.
+- MDX 코드블록을 수정하면 `pnpm validate:codeblocks`로 줄임표 처리 후에도 문법 하이라이팅이 깨지지 않는지 확인한다.

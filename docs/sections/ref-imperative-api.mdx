@@ -20,10 +20,10 @@ const SearchInput = ({ ref, value, onChange }) => {
         onChange(""); // [!code highlight]
         inputRef.current?.focus();
       },
-      focus) => {
+      focus: () => {
         inputRef.current?.focus();
       },
-      scrollIntoView) => {
+      scrollIntoView: () => {
         inputRef.current?.scrollIntoView({ block: "center" });
       },
     }),
