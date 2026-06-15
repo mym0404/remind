@@ -41,6 +41,7 @@ Rspress는 `docs/`를 문서 root로 읽고 conventional route를 만든다. 자
 ## Knowledge Router
 
 - `.agents/knowledge/architecture.md`: Rspress 구조, route, sidebar 기준
+- `.agents/knowledge/content-quality.md`: 문서 품질, 코드 예시, Rspress MDX 표현 기준
 - `.agents/knowledge/project-structure.md`: 주요 파일과 디렉터리 위치
 - `.agents/knowledge/verification.md`: 검증 명령과 blind spot
 - `.agents/knowledge/rspress.md`: 이 repo에서 쓰는 Rspress MDX 문법 reference

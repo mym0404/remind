@@ -22,4 +22,5 @@
 - `scripts/`: repository-local 검증 스크립트와 테스트가 있는 위치다.
 - `public/`: README 등 repository asset이 있는 위치다.
 - `.agents/knowledge/`: agent용 evergreen repository knowledge가 있는 위치다.
+- `.agents/knowledge/content-quality.md`: 문서 본문을 고칠 때 적용할 품질 기준이다.
 - `dist/`: `pnpm build`가 생성하는 Rspress output이며 git에서 무시한다.

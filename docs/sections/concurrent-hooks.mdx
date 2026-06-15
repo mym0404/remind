@@ -2,126 +2,70 @@
 
 ## 언제 쓰나
 
-입력은 바로 반응해야 하지만 목록, 차트, 탭처럼 다시 그리는 데 시간이 걸리는 UI가 있을 때 concurrent Hook을 쓴다. React 19에서는 급한 업데이트와 덜 급한 업데이트를 나눠 화면이 멈추는 느낌을 줄일 수 있다.
+입력은 즉시 반응해야 하고 목록, 차트, 탭 갱신은 늦춰도 될 때 쓴다. React가 급한 update와 덜 급한 update를 나눠 렌더링한다.
 
-`useTransition`은 상태 업데이트를 non-blocking update로 표시한다. `startTransition` 안에 느린 화면 전환이나 무거운 렌더링을 일으키는 state update를 넣고, `isPending`으로 전환 중 UI를 보여준다.
+`useTransition`은 느린 화면 전환을 non-blocking update로 표시한다. `useDeferredValue`는 렌더링 우선순위만 늦추며, API 호출 횟수를 줄이는 debounce가 아니다.
 
-검색 input의 `value`처럼 사용자가 입력하는 값은 transition으로 감싸지 않는다. 입력값 state는 바로 업데이트하고, 그 값을 쓰는 무거운 목록만 `useDeferredValue`나 transition으로 늦춘다.
+:::warning
+검색 input의 `value`처럼 사용자가 직접 조작하는 state는 transition으로 감싸지 않는다.
+:::
 
-`useDeferredValue`는 렌더링 우선순위를 늦춘다. debounce처럼 정해진 시간 동안 값을 막아두거나 API 호출 횟수를 줄이는 도구가 아니다. debounce는 마지막 입력 후 일정 시간이 지나야 값을 바꾸고, `useDeferredValue`는 React가 바쁜 동안 덜 중요한 화면 반영을 미룬다.
+`useOptimistic`은 서버 응답 전 화면을 먼저 바꿀 때 쓴다. 실패 문구와 pending 상태는 `useActionState`에 둔다.
 
-`useOptimistic`은 서버 응답 전에 화면을 먼저 바꿀 때 쓴다. 실패하면 확정된 서버 state로 돌아가고, 에러 문구는 `useActionState`의 state로 보여준다. `useActionState`는 form action의 결과, pending 상태, 에러 상태를 한곳에서 다룰 때 쓴다.
-
-`useId`는 label, help text, error text를 input과 연결할 때 안정적인 id를 만든다. list key를 만들 때 쓰는 Hook은 아니다.
+`useId`는 input과 label, help text, error text를 잇는 안정적인 id를 만든다. list key에는 쓰지 않는다.
 
 ## 바로 쓰는 코드
 
-```tsx
-import {
-  useActionState,
-  useDeferredValue,
-  useId,
-  useMemo,
-  useOptimistic,
-  useState,
-  useTransition,
-  type ChangeEvent,
-} from "react";
+```tsx title="ConcurrentTodoList.tsx"
 
-type TodoStatus = "saved" | "saving";
 
-type Todo = {
-  id: string;
-  title: string;
-  status: TodoStatus;
-};
+const initialState = { todos: [] };
 
-type TodoState = {
-  todos: Todo[];
-  error?: string;
-};
-
-type OptimisticTodo = {
-  id: string;
-  title: string;
-};
-
-type TodoFilter = "all" | TodoStatus;
-
-type SaveTodoResult =
-  | { ok: true; todo: Todo }
-  | { ok: false; message: string };
-
-const initialState: TodoState = {
-  todos: [
-    { id: "todo-1", title: "검색 결과 렌더링 줄이기", status: "saved" },
-    { id: "todo-2", title: "폼 저장 실패 처리하기", status: "saved" },
-  ],
-};
-
-const filters: { label: string; value: TodoFilter }[] = [
-  { label: "전체", value: "all" },
-  { label: "저장됨", value: "saved" },
-  { label: "저장 중", value: "saving" },
-];
-
-const readTitle = (formData: FormData) =>
+const readTitle = (formData) =>
   String(formData.get("title") ?? "").trim();
 
-const saveTodo = async (title: string): Promise<SaveTodoResult> => {
-  await new Promise((resolve) => {
-    setTimeout(resolve, 500);
-  });
+const saveTodo = async (title) => {
+  // ...
 
-  if (title.includes("실패")) {
-    return { ok: false, message: "서버에 저장하지 못했어요." };
-  }
-
-  return {
-    ok: true,
-    todo: {
-      id: crypto.randomUUID(),
-      title,
-      status: "saved",
-    },
-  };
+  return { id: crypto.randomUUID(), title, status: "saved" };
 };
 
 const addTodo = async (
-  currentState: TodoState,
-  formData: FormData,
-): Promise<TodoState> => {
+  currentState,
+  formData,
+) => {
   const title = readTitle(formData);
 
   if (!title) {
     return { ...currentState, error: "할 일을 입력하세요." };
   }
 
-  const result = await saveTodo(title);
-
-  if (!result.ok) {
-    return { ...currentState, error: result.message };
-  }
+  const todo = await saveTodo(title);
 
   return {
-    todos: [result.todo, ...currentState.todos],
-    error: undefined,
+    todos: [todo, ...currentState.todos],
+    error,
   };
 };
 
-export const ConcurrentTodoList = () => {
+const ConcurrentTodoList = () => {
   const searchId = useId();
   const titleId = useId();
   const errorId = useId();
   const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState<TodoFilter>("all");
-  const [isPending, startTransition] = useTransition();
-  const [state, addTodoAction, isSaving] = useActionState(addTodo, initialState);
-  const deferredSearch = useDeferredValue(search);
-  const [optimisticTodos, addOptimisticTodo] = useOptimistic(
+  const [filter, setFilter] = useState("all");
+  const [isPending, startTransition] = useTransition(); // [!code highlight]
+  const [state, addTodoAction, isSaving] = useActionState( // [!code highlight]
+    addTodo,
+    initialState,
+  );
+  // Keeps typing urgent while the derived list can lag.
+  const deferredSearch = useDeferredValue(search); // [!code highlight]
+  const [optimisticTodos, addOptimisticTodo] = useOptimistic( // [!code highlight]
     state.todos,
-    (currentTodos, todo: OptimisticTodo): Todo[] => [
-      { id: todo.id, title: todo.title, status: "saving" },
+    // Must stay pure; React may replay this update.
+    (currentTodos, todo) => [
+      { id: todo.id, title, status,
       ...currentTodos,
     ],
   );
@@ -137,24 +81,26 @@ export const ConcurrentTodoList = () => {
     });
   }, [deferredSearch, filter, optimisticTodos]);
 
-  const handleSearchChange = ({ target }: ChangeEvent<HTMLInputElement>) => {
-    setSearch(target.value);
+  const handleSearchChange = ({ target }) => {
+    // Controlled input state stays urgent.
+    setSearch(target.value); // [!code highlight]
   };
 
-  const handleFilterChange = (nextFilter: TodoFilter) => {
+  const handleFilterChange = (nextFilter) => {
     startTransition(() => {
-      setFilter(nextFilter);
+      // The state update must run inside startTransition.
+      setFilter(nextFilter); // [!code highlight]
     });
   };
 
-  const handleAddTodo = (formData: FormData) => {
+  const handleAddTodo = (formData) => {
     const title = readTitle(formData);
 
     if (title) {
       addOptimisticTodo({
         id: `optimistic-${crypto.randomUUID()}`,
         title,
-      });
+      }); // [!code highlight]
     }
 
     return addTodoAction(formData);
@@ -163,25 +109,16 @@ export const ConcurrentTodoList = () => {
   return (
     <section aria-busy={isPending || isSaving}>
       <label htmlFor={searchId}>검색</label>
-      <input
-        id={searchId}
-        value={search}
-        onChange={handleSearchChange}
-        placeholder="할 일 검색"
-      />
+      <input id={searchId} value={search} onChange={handleSearchChange} />
 
-      <div>
-        {filters.map((item) => (
-          <button
-            key={item.value}
-            type="button"
-            disabled={filter === item.value}
-            onClick={() => handleFilterChange(item.value)}
-          >
-            {item.label}
-          </button>
-        ))}
-      </div>
+      <button
+        type="button"
+        disabled={filter === "saved"}
+        onClick={() => handleFilterChange("saved")}
+      >
+        저장됨
+      </button>
+      {/* ...other filters */}
 
       <form action={handleAddTodo}>
         <label htmlFor={titleId}>할 일</label>
@@ -196,9 +133,7 @@ export const ConcurrentTodoList = () => {
         {state.error ? <p id={errorId}>{state.error}</p> : undefined}
       </form>
 
-      <p aria-live="polite">
-        {isPending ? "목록을 바꾸는 중" : `${visibleTodos.length}개 표시`}
-      </p>
+      <p aria-live="polite">{isPending ? "목록을 바꾸는 중" : `${visibleTodos.length}개 표시`}</p>
 
       <ul>
         {visibleTodos.map((todo) => (
@@ -215,16 +150,10 @@ export const ConcurrentTodoList = () => {
 
 ## 실수 포인트
 
-- controlled input의 `value` state를 `startTransition` 안에서 바꾸면 입력이 끊긴다.
-- `startTransition` 안에서 state update를 바로 실행하지 않으면 transition으로 처리되지 않는다.
-- `isPending`을 전역 loading처럼 쓰면 unrelated UI까지 불필요하게 막는다.
-- `useDeferredValue`는 API 요청 debounce를 대체하지 않는다.
-- `useDeferredValue`를 쓰더라도 무거운 계산은 `useMemo`처럼 계산 범위를 줄이는 코드와 함께 봐야 한다.
-- `useOptimistic`의 update 함수는 같은 입력에 같은 결과를 돌려줘야 한다.
-- optimistic update 실패 시 서버 state를 그대로 두지 않으면 rollback 기준이 사라진다.
-- `useActionState`에서 검증 실패와 저장 실패를 state로 돌려주지 않으면 화면에 에러를 보여주기 어렵다.
-- 예상하지 못한 런타임 오류까지 action state로 숨기면 Error Boundary가 처리할 수 없다.
-- `useId`로 list key를 만들면 항목 정체성을 안정적으로 보장하지 못한다.
+- `isPending`은 해당 transition 범위의 피드백에만 쓴다.
+- `useDeferredValue`는 무거운 계산을 없애지 않는다. 계산 범위는 `useMemo` 등으로 따로 줄인다.
+- optimistic update의 기준은 확정된 서버 state다.
+- 예상하지 못한 런타임 오류까지 action state로 숨기지 않는다.
 
 ## 참고
 

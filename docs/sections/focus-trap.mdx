@@ -2,33 +2,28 @@
 
 ## 언제 쓰나
 
-Focus Trap은 modal처럼 사용자가 열린 영역을 먼저 처리해야 할 때 쓴다. Tab focus가 화면 뒤로 빠지지 않게 막고, 열린 영역 안에서만 움직이게 만든다.
+Focus Trap은 modal처럼 열린 영역을 먼저 처리해야 할 때 쓴다. Tab focus를 영역 안에서만 순환시킨다.
 
-열릴 때는 닫기 버튼이나 첫 입력값처럼 바로 쓸 수 있는 요소로 focus를 옮긴다. 닫힐 때는 열기 전에 focus가 있던 요소로 되돌린다.
+열릴 때는 닫기 버튼이나 첫 입력값으로 focus를 옮기고, 닫힐 때는 이전 focus로 되돌린다.
 
-focus 대상은 selector로 후보를 모은 뒤 다시 걸러낸다. `disabled`, `hidden`, `aria-hidden`, `display: none`, `visibility: hidden` 상태인 요소는 Tab 순서에서 제외한다.
+:::warning
+Focus Trap은 focus 이동만 다룬다. 배경 `inert`, scroll lock, Escape 닫기, portal은 dialog 쪽 책임이다.
+:::
 
 ## 바로 쓰는 코드
 
-```tsx
-import { useEffect, useRef, useState } from "react";
-import type { RefObject } from "react";
+```tsx title="useFocusTrap.tsx"
 
 const focusableSelector = [
   "a[href]",
-  "area[href]",
   "button",
   "input",
-  "select",
-  "textarea",
-  "iframe",
-  "audio[controls]",
-  "video[controls]",
   "[contenteditable]:not([contenteditable='false'])",
   "[tabindex]",
+  // ...
 ].join(",");
 
-const isVisible = (element: HTMLElement) => {
+const isVisible = (element) => {
   const style = window.getComputedStyle(element);
 
   return (
@@ -38,13 +33,14 @@ const isVisible = (element: HTMLElement) => {
   );
 };
 
-const isFocusable = (element: HTMLElement) =>
+const isFocusable = (element) =>
+  // Selector only finds candidates. Filter the real Tab order again.
   element.matches(focusableSelector) &&
   !element.closest("[hidden], [inert], [aria-hidden='true']") &&
   !element.matches(":disabled") &&
   isVisible(element);
 
-const getTabbableElements = (container: HTMLElement) =>
+const getTabbableElements = (container) =>
   [...container.querySelectorAll<HTMLElement>(focusableSelector)].filter(
     (element) => isFocusable(element) && element.tabIndex >= 0,
   );
@@ -59,18 +55,12 @@ const getActiveElement = () => {
   return element;
 };
 
-type FocusTrapOptions = {
-  isActive: boolean;
-  containerRef: RefObject<HTMLElement | null>;
-  initialFocusRef?: RefObject<HTMLElement | null>;
-};
-
-export const useFocusTrap = ({
+const useFocusTrap = ({
   isActive,
   containerRef,
   initialFocusRef,
-}: FocusTrapOptions) => {
-  const previousFocusRef = useRef<HTMLElement | undefined>(undefined);
+}) => {
+  const previousFocusRef = useRef(undefined);
 
   useEffect(() => {
     if (!isActive) {
@@ -83,7 +73,7 @@ export const useFocusTrap = ({
       return;
     }
 
-    previousFocusRef.current = getActiveElement();
+    previousFocusRef.current = getActiveElement(); // [!code highlight]
 
     const tabbableElements = getTabbableElements(container);
     const initialFocusElement =
@@ -91,18 +81,18 @@ export const useFocusTrap = ({
         ? initialFocusRef.current
         : tabbableElements[0] ?? container;
 
-    initialFocusElement.focus();
+    initialFocusElement.focus(); // [!code highlight]
 
-    const handleKeyDown = (event: KeyboardEvent) => {
+    const handleKeyDown = (event) => {
       if (event.key !== "Tab") {
         return;
       }
 
-      const currentTabbableElements = getTabbableElements(container);
+      const currentTabbableElements = getTabbableElements(container); // [!code highlight]
 
       if (currentTabbableElements.length === 0) {
         event.preventDefault();
-        container.focus();
+        container.focus(); // Requires tabIndex={-1} on the container.
         return;
       }
 
@@ -116,7 +106,7 @@ export const useFocusTrap = ({
       if (event.shiftKey) {
         if (activeElement === firstElement || isFocusOutside) {
           event.preventDefault();
-          lastElement.focus();
+          lastElement.focus(); // [!code highlight]
         }
 
         return;
@@ -124,7 +114,7 @@ export const useFocusTrap = ({
 
       if (activeElement === lastElement || isFocusOutside) {
         event.preventDefault();
-        firstElement.focus();
+        firstElement.focus(); // [!code highlight]
       }
     };
 
@@ -134,20 +124,23 @@ export const useFocusTrap = ({
       document.removeEventListener("keydown", handleKeyDown);
 
       if (previousFocusRef.current?.isConnected) {
-        previousFocusRef.current.focus();
+        // The opener may have unmounted while the trap was active.
+        previousFocusRef.current.focus(); // [!code highlight]
       }
     };
   }, [containerRef, initialFocusRef, isActive]);
 };
+```
 
-export const FocusTrapExample = () => {
+```tsx title="FocusTrapDialog.tsx"
+const FocusTrapExample = () => {
   const [isOpen, setIsOpen] = useState(false);
-  const dialogRef = useRef<HTMLElement>(null);
-  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const dialogRef = useRef(null);
+  const closeButtonRef = useRef(null);
 
   useFocusTrap({
     isActive: isOpen,
-    containerRef: dialogRef,
+    containerRef, // [!code highlight]
     initialFocusRef: closeButtonRef,
   });
 
@@ -165,15 +158,11 @@ export const FocusTrapExample = () => {
             aria-modal="true"
             className="dialog"
             role="dialog"
-            tabIndex={-1}
+            tabIndex={-1} // [!code highlight]
           >
             <h2 id="delivery-title">배송지 선택</h2>
 
-            <button type="button">집</button>
-            <button type="button">회사</button>
-            <button type="button" disabled>
-              임시 저장된 배송지
-            </button>
+            {/* ... */}
 
             <button
               ref={closeButtonRef}
@@ -192,14 +181,9 @@ export const FocusTrapExample = () => {
 
 ## 실수 포인트
 
-- focusable selector는 후보를 모으는 용도다. 실제 Tab 순서는 보이는 상태와 `tabIndex`를 다시 확인해 계산한다.
-- focusable element를 처음 한 번만 계산하면, 나중에 `disabled`가 된 요소가 Tab 순서에 남을 수 있다.
-- `disabled`나 `hidden` 요소를 빼지 않으면 focus할 수 없는 요소를 기준으로 순환을 계산한다.
-- open 시 focus를 옮기지 않으면 keyboard 사용자가 열린 영역의 시작점을 직접 찾아야 한다.
-- 마지막 요소에서 Tab을 누르면 첫 요소로 보내야 한다.
-- 첫 요소에서 Shift+Tab을 누르면 마지막 요소로 보내야 한다.
-- close 후 이전 focus로 복귀하지 않으면 사용자가 닫기 전 위치를 잃는다.
-- focus할 요소가 없을 수 있으므로 container에 `tabIndex={-1}`을 둔다.
+- tabbable element는 Tab을 누를 때마다 다시 계산한다.
+- focus가 trap 밖에 있어도 첫 요소와 마지막 요소 경계에서 다시 안으로 돌린다.
+- focus할 내부 요소가 없으면 container가 fallback이 된다.
 
 ## 참고
 

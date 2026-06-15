@@ -27,6 +27,8 @@
 
 `llms: true`를 켜면 production build에서 agent가 읽기 쉬운 Markdown 산출물과 `llms.txt` 계열 파일이 생성된다.
 
+코드 라인 하이라이트는 `@shikijs/transformers`의 `transformerNotationHighlight`를 `markdown.shiki.transformers`에 연결해서 쓴다.
+
 ## MDX
 
 MDX는 Markdown 위에서 React component를 쓸 수 있는 형식이다. 이 repo의 문서 원본은 `.mdx` 확장자를 쓴다.
@@ -34,6 +36,7 @@ MDX는 Markdown 위에서 React component를 쓸 수 있는 형식이다. 이 re
 - Frontmatter는 문서 제목 같은 page metadata가 필요할 때만 쓴다.
 - 외부 component가 필요하면 MDX 상단에서 import한다.
 - 코드 블록은 fenced code block을 쓴다.
+- 중요한 코드 라인은 `// [!code highlight]`로 표시한다.
 - Custom container는 `:::tip`, `:::info`, `:::warning`, `:::danger`, `:::details` 형식을 쓴다.
 - 문서 내부 링크는 Rspress route 경로를 쓴다. 예: `/sections/react-state-events`
 

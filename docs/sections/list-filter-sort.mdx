@@ -2,82 +2,41 @@
 
 ## 언제 쓰나
 
-- 서버에서 받은 원본 배열은 그대로 두고, 화면에 보여줄 목록만 검색하거나 정렬할 때 쓴다.
-- 검색어, 필터, 정렬 조건이 바뀔 때마다 표시 목록을 다시 계산해야 할 때 쓴다.
-- 결과가 없을 때 빈 화면을 따로 보여줘야 할 때 쓴다.
+- 원본 배열은 두고 화면 목록만 검색, 필터, 정렬할 때 쓴다.
+- 조건이 바뀔 때마다 표시 목록을 다시 계산할 때 쓴다.
+- 결과 없음 UI가 필요할 때 쓴다.
 
 ## 바로 쓰는 코드
 
-원본 데이터는 `tasks`에 그대로 둔다. 화면에 보여줄 데이터만 `visibleTasks`로 계산한다.
+원본은 그대로 두고 표시 목록만 파생한다.
 
-```tsx
-import { type ChangeEvent, useMemo, useState } from "react";
+```tsx title="TaskList.tsx"
 
-type TaskStatus = "open" | "done";
-type StatusFilter = "all" | TaskStatus;
-type SortKey = "recent" | "title";
 
-type Task = {
-  id: string;
-  title: string;
-  owner: string;
-  status: TaskStatus;
-  updatedAt: string;
-};
-
-const tasks: Task[] = [
+const tasks = [
   {
     id: "task-1",
-    title: "검색 input 연결",
-    owner: "Mina",
-    status: "done",
-    updatedAt: "2026-06-01",
+    title,
+    owner,
+    status,
+    updatedAt,
   },
-  {
-    id: "task-2",
-    title: "empty state 추가",
-    owner: "Joon",
-    status: "open",
-    updatedAt: "2026-06-07",
-  },
-  {
-    id: "task-3",
-    title: "정렬 옵션 정리",
-    owner: "Mina",
-    status: "open",
-    updatedAt: "2026-06-03",
-  },
+  // ...
 ];
 
-const statusFilters: StatusFilter[] = ["all", "open", "done"];
-const sortKeys: SortKey[] = ["recent", "title"];
-
-const statusLabels: Record<StatusFilter, string> = {
-  all: "전체",
-  open: "진행 중",
-  done: "완료",
-};
-
-const sortLabels: Record<SortKey, string> = {
-  recent: "최근 수정순",
-  title: "제목순",
-};
-
-const isStatusFilter = (value: string): value is StatusFilter =>
-  statusFilters.some((filter) => filter === value);
-
-const isSortKey = (value: string): value is SortKey =>
-  sortKeys.some((key) => key === value);
+const statusFilters = ["all", "open", "done"];
+const sortKeys = ["recent", "title"];
 
 const TaskList = () => {
   const [query, setQuery] = useState("");
-  const [status, setStatus] = useState<StatusFilter>("all");
-  const [sortKey, setSortKey] = useState<SortKey>("recent");
+  const [status, setStatus] = useState("all");
+  const [sortKey, setSortKey] = useState("recent");
 
-  const visibleTasks = useMemo(() => {
+  const visibleTasks = useMemo(() => { // [!code highlight]
     const normalizedQuery = query.trim().toLowerCase();
 
     const filteredTasks = tasks.filter((task) => {
+      // Keep matching cheap and local to the derived list.
       const matchesQuery =
         task.title.toLowerCase().includes(normalizedQuery) ||
         task.owner.toLowerCase().includes(normalizedQuery);
@@ -86,7 +45,8 @@ const TaskList = () => {
       return matchesQuery && matchesStatus;
     });
 
-    return [...filteredTasks].sort((left, right) => {
+    // Copy before sort; sort mutates the array.
+    return [...filteredTasks].sort((left, right) => { // [!code highlight]
       if (sortKey === "title") {
         return left.title.localeCompare(right.title);
       }
@@ -96,23 +56,7 @@ const TaskList = () => {
         new Date(left.updatedAt).getTime()
       );
     });
-  }, [query, status, sortKey]);
-
-  const handleStatusChange = (event: ChangeEvent<HTMLSelectElement>) => {
-    const nextStatus = event.target.value;
-
-    if (isStatusFilter(nextStatus)) {
-      setStatus(nextStatus);
-    }
-  };
-
-  const handleSortChange = (event: ChangeEvent<HTMLSelectElement>) => {
-    const nextSortKey = event.target.value;
-
-    if (isSortKey(nextSortKey)) {
-      setSortKey(nextSortKey);
-    }
-  };
+  }, [query, status, sortKey]); // [!code highlight]
 
   return (
     <section>
@@ -124,35 +68,14 @@ const TaskList = () => {
         placeholder="제목 또는 담당자"
       />
 
-      <label htmlFor="task-status">상태</label>
-      <select id="task-status" value={status} onChange={handleStatusChange}>
-        {statusFilters.map((filter) => (
-          <option key={filter} value={filter}>
-            {statusLabels[filter]}
-          </option>
-        ))}
-      </select>
-
-      <label htmlFor="task-sort">정렬</label>
-      <select id="task-sort" value={sortKey} onChange={handleSortChange}>
-        {sortKeys.map((key) => (
-          <option key={key} value={key}>
-            {sortLabels[key]}
-          </option>
-        ))}
-      </select>
+      {/* Render filter and sort controls from statusFilters and sortKeys. */}
 
       {visibleTasks.length === 0 ? (
         <p>조건에 맞는 작업이 없습니다.</p>
       ) : (
         <ul>
           {visibleTasks.map((task) => (
-            <li key={task.id}>
-              <strong>{task.title}</strong>
-              <span>
-                {task.owner} · {statusLabels[task.status]} · {task.updatedAt}
-              </span>
-            </li>
+            <li key={task.id}>{task.title}</li>
           ))}
         </ul>
       )}
@@ -161,14 +84,17 @@ const TaskList = () => {
 };
 ```
 
+:::warning
+원본 배열이나 공유 배열에 `sort`를 바로 호출하면 다른 화면까지 순서가 바뀔 수 있다.
+:::
+
 ## 실수 포인트
 
-- 검색어나 필터 조건을 바꿀 때 원본 배열을 state로 덮어쓰지 않는다.
-- `sort`는 배열을 직접 바꾸므로 원본 배열이나 공유 배열에 바로 쓰지 않는다.
-- 검색어 input은 `value`와 `onChange`를 함께 둔 controlled input으로 만든다.
-- 표시 목록은 `useMemo`에서 계산하고, 검색어와 필터와 정렬 조건을 dependency에 넣는다.
-- 결과가 없을 때도 빈 `ul`만 렌더링하지 말고 empty state를 보여준다.
-- 조건이 많아지면 검색어, 필터, 정렬 조건을 하나의 상태 객체나 reducer로 묶는다.
+- 원본 배열을 검색 결과로 덮어쓰지 않는다.
+- `sort`는 복사본에만 쓴다.
+- 표시 목록은 조건을 dependency로 둔 `useMemo`에서 계산한다.
+- 검색 대상이 늘어나면 정규화와 matcher를 함수로 뺀다.
+- 조건이 많아지면 상태 객체나 reducer로 업데이트 경로를 줄인다.
 
 ## 참고
 

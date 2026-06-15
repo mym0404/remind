@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { defineConfig } from "@rspress/core";
+import { transformerNotationHighlight } from "@shikijs/transformers";
 
 const rootDir = path.dirname(fileURLToPath(import.meta.url));
 const docsDir = path.join(rootDir, "docs");
@@ -67,6 +68,16 @@ export default defineConfig({
   llms: true,
   search: {
     codeBlocks: true,
+  },
+  builderConfig: {
+    html: {
+      implementation: "native",
+    },
+  },
+  markdown: {
+    shiki: {
+      transformers: [transformerNotationHighlight()],
+    },
   },
   themeConfig: {
     nav: [{ text: "문서", link: "/sections/react-state-events" }],

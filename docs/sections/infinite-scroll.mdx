@@ -2,62 +2,53 @@
 
 ## 언제 쓰나
 
-- 사용자가 목록 끝에 가까워졌을 때 다음 page를 자동으로 붙여야 할 때 쓴다.
-- 검색 결과, 피드, 알림처럼 사용자가 계속 아래로 내려가며 보는 화면에 잘 맞는다.
-- 한 번에 모든 데이터를 불러오면 응답이 느려지거나 렌더링 비용이 커질 때 쓴다.
-- footer나 중요한 하단 버튼을 사용자가 반드시 봐야 하는 화면에는 pagination이나 더 보기 버튼이 더 낫다.
+- 검색 결과, 피드, 알림처럼 사용자가 계속 내려가며 보는 목록에 쓴다.
+- 한 번에 전부 불러오면 응답이나 렌더링이 무거울 때 쓴다.
+- footer나 하단 CTA를 반드시 봐야 하면 pagination이나 더 보기 버튼이 낫다.
 
 ## 바로 쓰는 코드
 
-sentinel element를 목록 끝에 두고 `IntersectionObserver`로 감지한다. observer callback은 오래된 state를 잡기 쉬우므로 `loading`, `hasMore`, 다음 page 값은 ref로 함께 관리한다.
+목록 끝의 sentinel을 `IntersectionObserver`로 감지한다. observer callback에서 읽는 값은 ref에 둔다.
 
-```tsx
-import { useCallback, useEffect, useRef, useState } from "react";
+```tsx title="FeedList.tsx"
 
-type FeedItem = {
-  id: string;
-  summary: string;
-  title: string;
-};
 
-type FeedPage = {
-  items: FeedItem[];
-  nextPage: number | undefined;
-};
-
-const fetchFeedPage = async (page: number, signal: AbortSignal) => {
+const fetchFeedPage = async (
+  page,
+  signal,
+) => {
   const response = await fetch(`/api/feed?page=${page}`, { signal });
 
   if (!response.ok) {
     throw new Error("목록을 불러오지 못했습니다.");
   }
 
-  const body: FeedPage = await response.json();
-
-  return body;
+  return response.json();
 };
 
-export const FeedList = () => {
-  const rootRef = useRef<HTMLDivElement>(null);
-  const sentinelRef = useRef<HTMLDivElement>(null);
-  const abortControllerRef = useRef<AbortController | undefined>(undefined);
+const FeedList = () => {
+  const rootRef = useRef(null);
+  const sentinelRef = useRef(null);
+  const abortControllerRef = useRef(undefined);
+
+  // Read refs inside IntersectionObserver to avoid stale state.
   const nextPageRef = useRef(1);
-  const requestedPageRef = useRef<number | undefined>(undefined);
+  const requestedPageRef = useRef(undefined);
   const isLoadingRef = useRef(false);
   const hasMoreRef = useRef(true);
-  const canLoadOnIntersectRef = useRef(true);
+  const canLoadOnIntersectRef = useRef(true); // [!code highlight]
 
-  const [items, setItems] = useState<FeedItem[]>([]);
+  const [items, setItems] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [hasMore, setHasMore] = useState(true);
-  const [errorMessage, setErrorMessage] = useState<string | undefined>();
+  const [errorMessage, setErrorMessage] = useState();
 
-  const updateLoading = useCallback((value: boolean) => {
+  const updateLoading = useCallback((value) => {
     isLoadingRef.current = value;
     setIsLoading(value);
   }, []);
 
-  const updateHasMore = useCallback((value: boolean) => {
+  const updateHasMore = useCallback((value) => {
     hasMoreRef.current = value;
     setHasMore(value);
   }, []);
@@ -65,10 +56,11 @@ export const FeedList = () => {
   const loadNextPage = useCallback(async () => {
     const page = nextPageRef.current;
 
+    // The same visible sentinel can fire more than once.
     if (
       isLoadingRef.current ||
       !hasMoreRef.current ||
-      requestedPageRef.current === page
+      requestedPageRef.current === page // [!code highlight]
     ) {
       return;
     }
@@ -120,25 +112,22 @@ export const FeedList = () => {
 
     const observer = new IntersectionObserver(
       ([entry]) => {
-        if (!entry) {
-          return;
-        }
+        if (!entry) return;
 
         if (!entry.isIntersecting) {
           canLoadOnIntersectRef.current = true;
           return;
         }
 
-        if (!canLoadOnIntersectRef.current) {
-          return;
-        }
+        if (!canLoadOnIntersectRef.current) return;
 
-        canLoadOnIntersectRef.current = false;
+        canLoadOnIntersectRef.current = false; // [!code highlight]
         void loadNextPage();
       },
       {
         root: rootRef.current,
-        rootMargin: "240px 0px",
+        // Prefetch before the user reaches the end.
+        rootMargin: "240px 0px", // [!code highlight]
         threshold: 0.1,
       },
     );
@@ -161,26 +150,14 @@ export const FeedList = () => {
       <div ref={rootRef} style={{ maxHeight: 480, overflowY: "auto" }}>
         <ul>
           {items.map((item) => (
-            <li key={item.id}>
-              <strong>{item.title}</strong>
-              <p>{item.summary}</p>
-            </li>
+            <li key={item.id}>{item.title}</li>
           ))}
         </ul>
         <div ref={sentinelRef} aria-hidden="true" />
       </div>
 
       {isLoading && <p>불러오는 중입니다.</p>}
-
-      {errorMessage && (
-        <div role="alert">
-          <p>{errorMessage}</p>
-          <button type="button" onClick={retry}>
-            다시 시도
-          </button>
-        </div>
-      )}
-
+      {errorMessage && <button type="button" onClick={retry}>다시 시도</button>}
       {!hasMore && <p>마지막 항목입니다.</p>}
     </section>
   );
@@ -189,14 +166,13 @@ export const FeedList = () => {
 
 ## 실수 포인트
 
-- sentinel ref를 목록 끝에 두지 않으면 사용자가 끝에 닿기 전에 요청이 나가거나 아예 요청이 나가지 않는다.
-- observer callback에서 state를 바로 읽으면 stale closure 때문에 이미 `loading`인데도 다시 요청할 수 있다.
-- `loading` 중 요청을 막지 않으면 같은 page가 여러 번 append될 수 있다.
-- 요청한 page 번호를 ref에 기록하지 않으면 observer가 같은 intersection을 여러 번 알려줄 때 중복 호출이 생긴다.
-- `hasMore`가 false가 된 뒤에도 요청하면 마지막 page를 계속 다시 불러온다.
-- `observer.disconnect()`를 cleanup에 넣지 않으면 unmount 뒤에도 callback이 남을 수 있다.
-- `root`는 감시 기준 scroll container이고, `rootMargin`은 미리 불러올 거리이며, `threshold`는 얼마나 보여야 감지할지 정하는 값이다.
-- 리스트가 짧아 sentinel이 계속 보이면 다음 page를 연속으로 당겨올 수 있다. sentinel이 화면 밖으로 나갔다가 다시 들어올 때만 요청하도록 잠근다.
+- observer callback에서는 ref를 읽는다. `loading`, `hasMore`, page 값이 state에만 있으면 stale closure로 중복 요청이 난다.
+- `requestedPageRef`로 같은 page append를 막는다.
+- `hasMore`가 false면 sentinel이 보여도 더 요청하지 않는다.
+
+:::warning
+sentinel이 계속 보이면 page를 연속으로 당겨올 수 있다. 화면 밖으로 나갔다가 다시 들어올 때만 요청하도록 잠근다.
+:::
 
 ## 참고
 

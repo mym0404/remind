@@ -12,6 +12,9 @@ importers:
         specifier: ^2.0.14
         version: 2.0.14(@rspack/core@2.0.8(@swc/helpers@0.5.23))(@types/mdast@4.0.4)(@types/react@19.2.17)(micromark-util-types@2.0.2)(micromark@4.0.2)
     devDependencies:
+      '@shikijs/transformers':
+        specifier: ^4.2.0
+        version: 4.2.0
       '@types/node':
         specifier: ^22.8.1
         version: 22.19.21
@@ -183,6 +186,10 @@ packages:
 
   '@shikijs/themes@4.2.0':
     resolution: {integrity: sha512-RX8IHYeLv8Cu2W6ruc3RxUqWn0IYCqSrMBzi/uRGAmfyDNOnNO5BF/Px7o97n4XTpmFTo5GbRaazuOWj+2ak2w==}
+    engines: {node: '>=20'}
+
+  '@shikijs/transformers@4.2.0':
+    resolution: {integrity: sha512-pKrYVNUr1oPjJvs76gkPPirDySx3GKG9O88P2Y3AQ+7AjSFws9Y+Ry/Q/6Yg6QpyigzjdQ6H5JAMNAvLXZ63dw==}
     engines: {node: '>=20'}
 
   '@shikijs/types@4.2.0':
@@ -1100,6 +1107,11 @@ snapshots:
 
   '@shikijs/themes@4.2.0':
     dependencies:
+      '@shikijs/types': 4.2.0
+
+  '@shikijs/transformers@4.2.0':
+    dependencies:
+      '@shikijs/core': 4.2.0
       '@shikijs/types': 4.2.0
 
   '@shikijs/types@4.2.0':

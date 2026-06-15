@@ -2,70 +2,62 @@
 
 ## 언제 쓰나
 
-폼은 입력값을 받는 순간부터 접근성을 챙겨야 한다. 사용자가 무엇을 입력해야 하는지 알고, 오류가 난 필드로 바로 이동할 수 있어야 한다.
+필드 이름, 도움말, 오류, 필수 여부를 입력 요소와 연결해야 할 때 쓴다. 제출 실패 후에는 첫 invalid field로 focus를 보낸다.
 
-각 필드는 보이는 `label`을 가진다. `label`의 `htmlFor`와 입력 요소의 `id`를 맞추고, `placeholder`를 label 대신 쓰지 않는다.
-
-필수값은 `required`로 표시한다. 에러 메시지는 `id`를 붙인 뒤 `aria-describedby`로 입력 요소와 연결하고, 에러 상태는 `aria-invalid`로 드러낸다.
+:::warning
+오류 메시지와 `aria-invalid`는 같은 조건으로 노출한다. 둘 중 하나만 남으면 보조 기술과 화면 상태가 어긋난다.
+:::
 
 ## 바로 쓰는 코드
 
-```tsx
-import { FormEvent, useRef, useState } from "react";
+```tsx title="ContactForm.tsx"
 
-type FormValues = {
-  email: string;
-  message: string;
-};
+// ...
 
-type FormErrors = Partial<Record<keyof FormValues, string>>;
-
-const initialValues: FormValues = {
-  email: "",
-  message: "",
-};
-
-const describedBy = (ids: (string | undefined)[]) =>
+const describedBy = (ids)[]) =>
   ids.filter((id): id is string => Boolean(id)).join(" ") || undefined;
 
-const validate = (values: FormValues) => {
-  const nextErrors: FormErrors = {};
-
-  if (!values.email.trim()) {
-    nextErrors.email = "이메일을 입력하세요.";
-  } else if (!values.email.includes("@")) {
-    nextErrors.email = "이메일 형식을 확인하세요.";
-  }
-
-  if (!values.message.trim()) {
-    nextErrors.message = "문의 내용을 입력하세요.";
-  }
-
-  return nextErrors;
+const validate = (values) => {
+  // ...
 };
 
-export const ContactForm = () => {
-  const [values, setValues] = useState(initialValues);
-  const [errors, setErrors] = useState<FormErrors>({});
-  const emailRef = useRef<HTMLInputElement>(null);
-  const messageRef = useRef<HTMLTextAreaElement>(null);
+const ContactForm = () => {
+  const [values, setValues] = useState({ email: "", message);
+  const [errors, setErrors] = useState({});
+  const emailRef = useRef(null);
+  const messageRef = useRef(null);
+  const emailId = useId();
+  const emailHelpId = useId();
+  const emailErrorId = useId();
+  const messageId = useId();
+  const messageErrorId = useId();
 
-  const focusFirstInvalidField = (nextErrors: FormErrors) => {
+  const updateEmail = ({ target }) =>
+    setValues((current) => ({ ...current, email));
+  const updateMessage = ({ target }) =>
+    setValues((current) => ({ ...current, message));
+  const resetForm = () => {
+    // ...
+  };
+
+  const focusFirstInvalidField = (nextErrors) => {
+    // Move focus after a failed submit, not while typing.
     if (nextErrors.email) {
-      emailRef.current?.focus();
+      emailRef.current?.focus(); // [!code highlight]
       return;
     }
 
     if (nextErrors.message) {
-      messageRef.current?.focus();
+      messageRef.current?.focus(); // [!code highlight]
     }
   };
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = (event) => {
     event.preventDefault();
 
+    // values come from the controlled fields.
     const nextErrors = validate(values);
-    setErrors(nextErrors);
+    setErrors(nextErrors); // [!code highlight]
 
     if (Object.keys(nextErrors).length > 0) {
       focusFirstInvalidField(nextErrors);
@@ -75,56 +67,48 @@ export const ContactForm = () => {
     console.log("submit", values);
   };
 
-  const handleReset = () => {
-    setValues(initialValues);
-    setErrors({});
-    emailRef.current?.focus();
-  };
-
   return (
     <form noValidate onSubmit={handleSubmit}>
       <div>
-        <label htmlFor="contact-email">이메일</label>
+        <label htmlFor={emailId}>이메일</label>
         <input
-          id="contact-email"
+          id={emailId}
           ref={emailRef}
           type="email"
           value={values.email}
-          onChange={({ target }) =>
-            setValues((current) => ({ ...current, email: target.value }))
-          }
+          onChange={updateEmail}
           required
-          aria-invalid={Boolean(errors.email)}
+          aria-invalid={Boolean(errors.email)} // [!code highlight]
           aria-describedby={describedBy([
-            "contact-email-help",
-            errors.email ? "contact-email-error" : undefined,
-          ])}
+            emailHelpId,
+            // Only connect the error id while it is rendered.
+            errors.email ? emailErrorId : undefined,
+          ])} // [!code highlight]
         />
-        <p id="contact-email-help">답변을 받을 이메일을 입력하세요.</p>
+        <p id={emailHelpId}>답변을 받을 이메일을 입력하세요.</p>
         {errors.email ? (
-          <p id="contact-email-error">{errors.email}</p>
+          <p id={emailErrorId}>{errors.email}</p>
         ) : undefined}
       </div>
 
+      {/* Repeat the same label/id/error pattern for other fields. */}
       <div>
-        <label htmlFor="contact-message">문의 내용</label>
+        <label htmlFor={messageId}>문의 내용</label>
         <textarea
-          id="contact-message"
+          id={messageId}
           ref={messageRef}
           value={values.message}
-          onChange={({ target }) =>
-            setValues((current) => ({ ...current, message: target.value }))
-          }
+          onChange={updateMessage}
           required
           aria-invalid={Boolean(errors.message)}
-          aria-describedby={errors.message ? "contact-message-error" : undefined}
+          aria-describedby={errors.message ? messageErrorId : undefined}
         />
         {errors.message ? (
-          <p id="contact-message-error">{errors.message}</p>
+          <p id={messageErrorId}>{errors.message}</p>
         ) : undefined}
       </div>
 
-      <button type="button" onClick={handleReset}>
+      <button type="button" onClick={resetForm}>
         초기화
       </button>
       <button type="submit">보내기</button>
@@ -135,14 +119,11 @@ export const ContactForm = () => {
 
 ## 실수 포인트
 
-- `placeholder`만 두면 값을 입력한 뒤 필드의 목적을 다시 확인하기 어렵다.
-- `id`와 `htmlFor`가 다르면 label을 눌러도 입력 요소로 focus가 이동하지 않는다.
-- 에러 문구를 화면에만 보여주면 스크린 리더가 입력 요소와 에러를 함께 읽기 어렵다.
-- `aria-invalid`를 항상 `true`로 두면 사용자가 수정한 뒤에도 오류 상태로 남는다.
-- `required`를 빼면 필수 입력값이라는 정보가 브라우저와 보조 기술에 전달되지 않는다.
-- 검증 실패 후 focus를 옮기지 않으면 사용자가 첫 오류 위치를 직접 찾아야 한다.
-- 폼 안의 일반 버튼에 `type="button"`을 쓰지 않으면 기본값인 submit으로 동작할 수 있다.
-- 클릭 가능한 요소는 `div`가 아니라 `button`으로 만든다.
+- `aria-describedby`에는 현재 DOM에 있는 설명과 오류 `id`만 넣는다.
+- 서버 오류나 async validation도 화면 메시지와 같은 조건으로 `aria-invalid`를 계산한다.
+- 짧은 폼은 첫 invalid field, 긴 폼은 summary와 field link가 낫다.
+- native form control은 `required`, `type`, `button type`을 먼저 쓴다.
+- 폼 안의 명령은 clickable `div`가 아니라 `button`으로 만든다.
 
 ## 참고
 
