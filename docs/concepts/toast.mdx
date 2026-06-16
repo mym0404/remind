@@ -2,63 +2,39 @@
 
 ## API reference
 
-Toast는 queue에 쌓이는 항목과 queue를 조작하는 함수만 작게 잡으면 된다. 호출부에는 `showToast`만 열어두고, timer 정리는 provider 안에 둔다.
+- queue: 화면에 떠 있는 toast 목록이다. 새 항목은 기존 항목을 덮어쓰지 않고 뒤에 붙인다.
+- `aria-live`: 일반 알림은 `polite`로 알리고, 즉시 알려야 하는 실패만 `assertive`로 분리한다.
+- auto dismiss timer: toast마다 제거 timer를 만든다.
+- manual close: 닫기 버튼은 같은 제거 함수를 호출해 특정 `id`만 지운다.
+- cleanup: 수동 닫기, 자동 제거, unmount에서 남은 timer를 정리한다.
 
-```tsx title="toast-types.ts"
-type ToastStatus = "info" | "success" | "error";
+## 쓰는 곳
 
-type ToastItem = {
-  id: string;
-  message: string;
-  status: ToastStatus;
-  duration: number;
-};
+Toast는 저장 완료, 복사 완료, 삭제 실패처럼 방금 한 작업의 결과를 짧게 알려줄 때 쓴다. 사용자의 선택이나 복구가 필요하면 toast 대신 dialog, inline error, undo action을 먼저 검토한다.
 
-type ShowToastInput = {
-  message: string;
-  status?: ToastStatus;
-  duration?: number;
-};
+## 바로 쓰는 코드
 
-type ToastQueueState = {
-  toasts: ToastItem[];
-  showToast: (input: ShowToastInput) => string;
-  removeToast: (id: string) => void;
-  clearToasts: () => void;
-};
-```
+```tsx title="toast-queue.tsx"
+const [toasts, setToasts] = useState<ToastItem[]>([]);
+const timersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
-- `id`: 닫기, 자동 제거, 중복 key를 모두 연결하는 값이다.
-- `message`: 사용자에게 보이는 짧은 결과 문구다.
-- `status`: `info`, `success`, `error`처럼 의미를 먼저 나누고 style은 렌더러에서 붙인다.
-- `duration`: 자동 제거까지 기다릴 시간이다. 항목마다 다르게 둘 수 있지만 기본값을 provider에 둔다.
-- `toasts`: 현재 화면에 떠 있는 toast queue다. 추가할 때는 functional update를 쓴다.
-- `showToast`: 항목을 queue에 넣고 timer를 만든 뒤 `id`를 돌려준다.
-- `removeToast`: 같은 `id`의 timer를 `clearTimeout`으로 지우고 queue에서도 제거한다.
-- `clearToasts`: 화면 전환이나 provider unmount처럼 전체 queue를 비울 때 모든 timer를 먼저 정리한다.
-
-```tsx title="queue-api.tsx"
-const DEFAULT_TOAST_DURATION = 3000;
-
-const showToast = ({
+const addToast = ({
   message,
   status = "info",
-  duration = DEFAULT_TOAST_DURATION,
+  duration = 3000,
 }: ShowToastInput) => {
   const id = crypto.randomUUID();
-  const toast = { id, message, status, duration };
 
-  setToasts((currentToasts) => [...currentToasts, toast]); // [!code highlight]
+  setToasts((currentToasts) => [
+    ...currentToasts,
+    { id, message, status },
+  ]); // [!code highlight]
   timersRef.current[id] = setTimeout(() => {
     removeToast(id);
   }, duration);
 
   return id;
 };
-```
-
-```tsx title="timer-cleanup.tsx"
-const timersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
 const removeToast = (id: string) => {
   clearTimeout(timersRef.current[id]); // [!code highlight]
@@ -75,145 +51,9 @@ useEffect(() => {
 }, []);
 ```
 
-```tsx title="ToastViewport.tsx"
-<>
-  <div className="toast-area" role="status" aria-live="polite">
-    {toasts
-      .filter((toast) => toast.status !== "error")
-      .map((toast) => (
-        <div className={`toast toast-${toast.status}`} key={toast.id}>
-          {toast.message}
-        </div>
-      ))}
-  </div>
-  <div className="toast-area toast-area-error" role="alert" aria-live="assertive">
-    {toasts
-      .filter((toast) => toast.status === "error")
-      .map((toast) => (
-        <div className="toast toast-error" key={toast.id}>
-          {toast.message}
-        </div>
-      ))}
-  </div>
-</>
-```
-
-일반 알림은 `role="status"`와 `aria-live="polite"`로 충분하다. 실패처럼 바로 알려야 하는 항목만 `role="alert"`와 `aria-live="assertive"`로 분리한다.
-
-## 언제 쓰나
-
-Toast는 저장 완료, 삭제 실패, 네트워크 오류처럼 방금 한 일의 결과를 짧게 알려줄 때 쓴다. 확인, 선택, 복구가 필요하면 modal, inline error, dialog가 더 맞다.
-
-여러 곳에서 쓰면 `ToastProvider`가 queue와 timer를 관리하고, 호출부는 `showToast({ message, status })`만 호출한다.
-
-## 바로 쓰는 코드
-
-```tsx title="ToastProvider.tsx"
-const ToastContext = createContext(undefined);
-const TOAST_DURATION = 3000;
-
-const ToastProvider = ({ children }) => {
-  const [toasts, setToasts] = useState([]);
-  const timersRef = useRef({});
-
-  const removeToast = useCallback((id) => {
-    // Manual close and auto-dismiss share the same cleanup path.
-    clearTimeout(timersRef.current[id]); // [!code highlight]
-    delete timersRef.current[id];
-    setToasts((currentToasts) =>
-      currentToasts.filter((toast) => toast.id !== id),
-    );
-  }, []);
-
-  const showToast = useCallback(
-    ({ message, status = "info", duration = TOAST_DURATION }) => {
-      const id = crypto.randomUUID();
-      const toast = { id, message, status, duration };
-
-      // Functional update keeps rapid calls from dropping toasts.
-      setToasts((currentToasts) => [...currentToasts, toast]); // [!code highlight]
-      timersRef.current[id] = setTimeout(() => {
-        removeToast(id);
-      }, duration);
-
-      return id;
-    },
-    [removeToast],
-  );
-
-  useEffect(() => {
-    return () => {
-      // Prevent pending callbacks after the provider unmounts.
-      Object.values(timersRef.current).forEach(clearTimeout); // [!code highlight]
-    };
-  }, []);
-
-  const value = useMemo(() => ({ showToast }), [showToast]);
-
-  return (
-    <ToastContext.Provider value={value}>
-      {children}
-      <div className="toast-area" role="status" aria-live="polite">
-        {/* aria-live announces newly mounted toasts. */}
-        {toasts.map((toast) => (
-          <div className={`toast toast-${toast.status}`} key={toast.id}>
-            <span>{toast.message}</span>
-            <button type="button" onClick={() => removeToast(toast.id)}>
-              닫기
-            </button>
-          </div>
-        ))}
-      </div>
-    </ToastContext.Provider>
-  );
-};
-
-// ...
-
-const useToast = () => {
-  const context = useContext(ToastContext);
-
-  if (context === undefined) {
-    throw new Error("useToast must be used within ToastProvider");
-  }
-
-  return context;
-};
-```
-
-```tsx title="SaveButton.tsx"
-const SaveButton = () => {
-  const { showToast } = useToast();
-
-  return (
-    <button
-      type="button"
-      onClick={() => showToast({ message: "저장했어요.", status: "success" })}
-    >
-      저장
-    </button>
-  );
-};
-```
-
-```tsx title="App.tsx"
-const App = () => {
-  return (
-    <ToastProvider>
-      <SaveButton />
-      {/* ... */}
-    </ToastProvider>
-  );
-};
-```
-
 ## 실수 포인트
 
-- `setToasts([...toasts, toast])`는 빠른 연속 호출을 놓칠 수 있다.
-- 자동 제거 timer와 수동 닫기 timer는 같은 정리 경로를 써야 한다.
-- status를 호출부 style 분기로 흩뜨리면 상태별 UI가 쉽게 어긋난다.
-- `aria-live`가 없으면 화면 읽기 프로그램이 새 toast를 놓칠 수 있다.
-
-## 참고
-
-- [MDN aria-live](https://developer.mozilla.org/en-US/docs/Web/Accessibility/ARIA/Reference/Attributes/aria-live)
+- `setToasts([...toasts, toast])`는 빠른 연속 호출에서 이전 queue를 놓칠 수 있다.
+- 자동 제거와 수동 닫기가 다른 제거 경로를 쓰면 timer가 남기 쉽다.
+- `aria-live="assertive"`를 모든 toast에 쓰면 screen reader 흐름을 과하게 끊는다.
+- unmount cleanup이 없으면 provider가 사라진 뒤 timer callback이 실행될 수 있다.

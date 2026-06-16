@@ -2,256 +2,59 @@
 
 ## API reference
 
-Concurrent UI API는 급한 입력과 늦춰도 되는 렌더링을 분리한다. `useTransition`은 state update를 transition으로 표시하고, `useDeferredValue`는 값 하나의 반영 시점을 늦춘다.
+- `useTransition()`: `[isPending, startTransition]`을 반환한다. transition으로 표시한 update는 다른 urgent update에 interrupt될 수 있다.
+- `startTransition(action)`: `action`을 즉시 실행하고, 그 안에서 동기적으로 예약한 state update를 transition으로 표시한다.
+- `isPending`: 같은 `useTransition`에서 시작한 transition이 아직 화면에 반영되지 않았는지 나타내는 boolean이다.
+- `useDeferredValue(value, initialValue?)`: `value`의 소비 쪽 반영을 늦춘다. 첫 렌더에서는 `initialValue`가 있으면 그 값을 쓰고, 이후에는 이전 값을 먼저 유지한 뒤 background render가 끝나면 새 값으로 바뀐다.
 
-### `useTransition`
+## 쓰는 곳
 
-- 선언: `const [isPending, startTransition] = useTransition()`
-- 반환: `[boolean, (action: () => void | Promise<void>) => void]` 튜플을 반환한다.
-- 갱신: `startTransition`으로 시작한 transition이 남아 있으면 `isPending`이 `true`가 되고, 관련 update가 끝나 화면에 반영되면 `false`로 돌아온다.
-- 용도: 탭, 필터, 차트, 목록처럼 입력 흐름을 막지 않아도 되는 state update를 감싼다.
+입력, 클릭, 포커스처럼 바로 반응해야 하는 update와 목록, 차트, 탭 패널처럼 늦게 바뀌어도 되는 렌더링을 분리할 때 쓴다.
 
-```tsx title="useTransition.tsx"
-const ProductTabs = () => {
-  const [tab, setTab] = useState("details");
-  const [isPending, startTransition] = useTransition();
-
-  const selectTab = (nextTab: string) => {
-    startTransition(() => {
-      setTab(nextTab);
-    });
-  };
-
-  return (
-    <section aria-busy={isPending}>
-      <button type="button" onClick={() => selectTab("reviews")}>
-        리뷰
-      </button>
-      <ProductPanel tab={tab} />
-    </section>
-  );
-};
-```
-
-### `startTransition`
-
-- 선언: `startTransition(action)`
-- 인자: `action`은 React가 즉시 호출하는 함수다. 이 함수가 동기적으로 예약한 state update가 transition으로 표시된다.
-- 반환: 값을 반환하지 않는다.
-- 갱신: `await` 뒤의 state update는 transition 범위를 잃을 수 있으므로 다시 `startTransition`으로 감싼다.
-
-```tsx title="startTransition.tsx"
-const saveTab = async (nextTab: string) => {
-  await savePreference(nextTab);
-
-  startTransition(() => {
-    setTab(nextTab);
-  });
-};
-```
-
-### `isPending`
-
-- 선언: `const [isPending] = useTransition()`
-- 값: 같은 `useTransition`에서 시작한 transition의 진행 여부를 나타내는 boolean이다.
-- 갱신: transition이 시작되면 `true`, 더 급한 update에 밀린 렌더링까지 끝나면 `false`다.
-- 용도: 전체 page loading이 아니라 transition으로 바뀌는 영역의 피드백에만 쓴다.
-
-```tsx title="isPending.tsx"
-const ResultCount = ({
-  isPending,
-  count,
-}: {
-  isPending: boolean;
-  count: number;
-}) => (
-  <p aria-live="polite">
-    {isPending ? "목록을 바꾸는 중" : `${count}개 표시`}
-  </p>
-);
-```
-
-### `useDeferredValue`
-
-- 선언: `const deferredValue = useDeferredValue(value, initialValue?)`
-- 인자: `value`는 늦춰 반영할 값이고, `initialValue`는 첫 렌더에서만 대신 쓸 값이다.
-- 반환: `value`와 같은 타입의 deferred value를 반환한다.
-- 갱신: 첫 렌더에서는 `initialValue`가 있으면 그 값을, 없으면 `value`를 반환한다. 이후 `value`가 달라지면 먼저 이전 값을 반환하고, background render가 끝나면 새 값을 반환한다.
-- 주의: 고정 지연 시간이나 debounce가 아니다. transition 안에서 온 update는 이미 늦춰진 update라서 새 `value`를 바로 반환한다.
-
-```tsx title="useDeferredValue.tsx"
-const SearchResults = () => {
-  const [query, setQuery] = useState("");
-  const deferredQuery = useDeferredValue(query);
-  const isStale = query !== deferredQuery;
-
-  return (
-    <>
-      <input
-        value={query}
-        onChange={(event) => {
-          setQuery(event.target.value);
-        }}
-      />
-      <ResultList query={deferredQuery} dimmed={isStale} />
-    </>
-  );
-};
-```
-
-## 언제 쓰나
-
-입력은 즉시 반응해야 하고 목록, 차트, 탭 갱신은 늦춰도 될 때 쓴다. React가 급한 update와 덜 급한 update를 나눠 렌더링한다.
-
-`useTransition`은 느린 화면 전환을 non-blocking update로 표시한다. `useDeferredValue`는 렌더링 우선순위만 늦추며, API 호출 횟수를 줄이는 debounce가 아니다.
-
-:::warning
-검색 input의 `value`처럼 사용자가 직접 조작하는 state는 transition으로 감싸지 않는다.
-:::
-
-`useOptimistic`은 서버 응답 전 화면을 먼저 바꿀 때 쓴다. 실패 문구와 pending 상태는 `useActionState`에 둔다.
-
-`useId`는 input과 label, help text, error text를 잇는 안정적인 id를 만든다. list key에는 쓰지 않는다.
+`useTransition`은 state update의 우선순위를 낮춘다. `useDeferredValue`는 값 자체를 복사하거나 debounce하지 않고, 그 값을 읽는 무거운 UI의 렌더링만 늦춘다.
 
 ## 바로 쓰는 코드
 
-```tsx title="ConcurrentTodoList.tsx"
-const initialState = { todos: [] };
+```tsx title="SearchResults.tsx"
+const SearchResults = ({ items }: { items: string[] }) => {
+  const [query, setQuery] = useState("");
+  const [selectedItem, setSelectedItem] = useState<string>();
+  const [isPending, startTransition] = useTransition();
+  const deferredQuery = useDeferredValue(query);
 
-const readTitle = (formData) =>
-  String(formData.get("title") ?? "").trim();
+  const visibleItems = useMemo(() => {
+    const keyword = deferredQuery.toLowerCase();
 
-const saveTodo = async (title) => {
-  // ...
+    return items.filter((item) => item.toLowerCase().includes(keyword));
+  }, [deferredQuery, items]);
 
-  return { id: crypto.randomUUID(), title, status: "saved" };
-};
-
-const addTodo = async (
-  currentState,
-  formData,
-) => {
-  const title = readTitle(formData);
-
-  if (!title) {
-    return { ...currentState, error: "할 일을 입력하세요." };
-  }
-
-  const todo = await saveTodo(title);
-
-  return {
-    todos: [todo, ...currentState.todos],
-    error,
-  };
-};
-
-const ConcurrentTodoList = () => {
-  const searchId = useId();
-  const titleId = useId();
-  const errorId = useId();
-  const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState("all");
-  const [isPending, startTransition] = useTransition(); // [!code highlight]
-  const [state, addTodoAction, isSaving] = useActionState( // [!code highlight]
-    addTodo,
-    initialState,
-  );
-  // Keeps typing urgent while the derived list can lag.
-  const deferredSearch = useDeferredValue(search); // [!code highlight]
-  const [optimisticTodos, addOptimisticTodo] = useOptimistic( // [!code highlight]
-    state.todos,
-    // Must stay pure; React may replay this update.
-    (currentTodos, todo) => [
-      { id: todo.id, title: todo.title, status: "saving" },
-      ...currentTodos,
-    ],
-  );
-
-  const visibleTodos = useMemo(() => {
-    const keyword = deferredSearch.toLowerCase();
-
-    return optimisticTodos.filter((todo) => {
-      const matchesKeyword = todo.title.toLowerCase().includes(keyword);
-      const matchesFilter = filter === "all" || todo.status === filter;
-
-      return matchesKeyword && matchesFilter;
-    });
-  }, [deferredSearch, filter, optimisticTodos]);
-
-  const handleSearchChange = ({ target }) => {
-    // Controlled input state stays urgent.
-    setSearch(target.value); // [!code highlight]
-  };
-
-  const handleFilterChange = (nextFilter) => {
+  const selectItem = (item: string) => {
     startTransition(() => {
-      // The state update must run inside startTransition.
-      setFilter(nextFilter); // [!code highlight]
+      setSelectedItem(item);
     });
-  };
-
-  const handleAddTodo = (formData) => {
-    const title = readTitle(formData);
-
-    if (title) {
-      addOptimisticTodo({
-        id: `optimistic-${crypto.randomUUID()}`,
-        title,
-      }); // [!code highlight]
-    }
-
-    return addTodoAction(formData);
   };
 
   return (
-    <section aria-busy={isPending || isSaving}>
-      <label htmlFor={searchId}>검색</label>
-      <input id={searchId} value={search} onChange={handleSearchChange} />
-
-      <button
-        type="button"
-        disabled={filter === "saved"}
-        onClick={() => handleFilterChange("saved")}
-      >
-        저장됨
-      </button>
-      {/* ...other filters */}
-
-      <form action={handleAddTodo}>
-        <label htmlFor={titleId}>할 일</label>
-        <input
-          id={titleId}
-          name="title"
-          aria-describedby={state.error ? errorId : undefined}
-        />
-        <button type="submit" disabled={isSaving}>
-          {isSaving ? "저장 중" : "추가"}
-        </button>
-        {state.error ? <p id={errorId}>{state.error}</p> : undefined}
-      </form>
-
-      <p aria-live="polite">{isPending ? "목록을 바꾸는 중" : `${visibleTodos.length}개 표시`}</p>
-
-      <ul>
-        {visibleTodos.map((todo) => (
-          <li key={todo.id}>
-            {todo.title}
-            {todo.status === "saving" ? " 저장 중" : ""}
+    <>
+      <input value={query} onChange={(event) => setQuery(event.target.value)} />
+      <p aria-live="polite">{isPending ? "선택 반영 중" : `${visibleItems.length}개`}</p>
+      <ul aria-busy={query !== deferredQuery || isPending}>
+        {visibleItems.map((item) => (
+          <li key={item}>
+            <button type="button" onClick={() => selectItem(item)}>
+              {item === selectedItem ? `${item} 선택됨` : item}
+            </button>
           </li>
         ))}
       </ul>
-    </section>
+    </>
   );
 };
 ```
 
 ## 실수 포인트
 
-- `isPending`은 해당 transition 범위의 피드백에만 쓴다.
-- `useDeferredValue`는 무거운 계산을 없애지 않는다. 계산 범위는 `useMemo` 등으로 따로 줄인다.
-- optimistic update의 기준은 확정된 서버 state다.
-- 예상하지 못한 런타임 오류까지 action state로 숨기지 않는다.
-
-## 참고
-
-- [React useTransition](https://react.dev/reference/react/useTransition)
+- controlled input의 `value`를 바꾸는 state update는 `startTransition`에 넣지 않는다.
+- `useDeferredValue`는 고정 지연 시간, debounce, 네트워크 요청 제어가 아니다.
+- deferred 값으로 계산한 목록과 원본 값으로 계산한 목록을 한 화면에서 섞지 않는다.
+- `await` 뒤에 예약하는 state update까지 transition으로 다루려면 다시 `startTransition`으로 감싼다.

@@ -6,13 +6,13 @@
 
 ## 핵심 개념
 
-- validation 함수를 컴포넌트 밖에 둔다.
-- 에러 메시지와 입력을 aria-describedby로 연결한다.
-- 첫 번째 invalid field에 focus를 보낸다.
+- `validateForm`은 값만 받아 error map을 돌려준다.
+- error message는 input과 `aria-describedby`로 연결한다.
+- submit 실패 시 첫 invalid field로 focus를 보낸다.
 
 ## 풀이 흐름
 
-제출 handler는 `preventDefault` 뒤에 현재 form 값을 검증한다. 검증 결과는 field 이름을 key로 둔 error object에 담고, 첫 번째 에러 field의 ref에 focus를 준다. 에러 문구는 id를 가진 요소로 렌더링해서 input의 설명으로 연결한다.
+submit에서 순수 validation을 먼저 실행한다. error가 있으면 렌더링하고 첫 field ref에 focus를 준다.
 
 ## 핵심 코드
 

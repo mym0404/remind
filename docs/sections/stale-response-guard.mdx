@@ -6,13 +6,13 @@
 
 ## 핵심 개념
 
-- 검색어 변경마다 요청을 보낸다.
-- 최신 요청 id나 AbortController로 stale response를 무시한다.
-- loading 중에도 input은 즉시 갱신된다.
+- 요청마다 최신성을 비교할 id가 필요하다.
+- 늦게 끝난 이전 응답은 버린다.
+- input state는 loading과 분리한다.
 
 ## 풀이 흐름
 
-요청을 시작할 때마다 request id를 증가시킨다. 응답을 받았을 때 현재 id와 요청 당시 id가 다르면 화면에 반영하지 않는다. input state는 요청 상태와 분리해서 loading 중에도 계속 바뀌게 둔다.
+검색어 변경마다 request id를 갱신한다. 응답이 돌아오면 최신 id와 맞을 때만 결과 state에 반영한다.
 
 ## 핵심 코드
 

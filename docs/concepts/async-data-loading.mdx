@@ -2,271 +2,66 @@
 
 ## API reference
 
-React에서 직접 데이터를 불러올 때는 브라우저 API와 렌더링 상태의 책임을 나눠 둔다. 요청은 `fetch`가 맡고, 응답 판정은 `Response`에서 끝낸다. React effect는 비동기 함수를 직접 받지 않고, cleanup에서 이전 요청을 끊는다.
+- `fetch(input, init?)`: `Promise<Response>`를 반환한다. 요청 취소가 필요하면 `init.signal`에 `AbortSignal`을 넘긴다.
+- `response.ok`: HTTP status가 200~299이면 `true`다. 404, 500 같은 HTTP error는 `fetch`가 자동으로 throw하지 않는다.
+- `response.status`: 실패 메시지나 로그에 남길 숫자 상태 코드다.
+- `response.json()`: response body를 한 번 읽어 JSON으로 파싱한다. 같은 body를 다시 읽을 수 없다.
+- `AbortController`: `controller.signal`을 요청에 연결하고, effect cleanup에서 `controller.abort()`를 호출한다.
+- `LoadState`: `loading`, `success`, `empty`, `error`를 한 state로 묶어 화면 분기를 명확히 한다.
 
-### `fetch`
+## 쓰는 곳
 
-- 선언/사용: `fetch(input, init?)`
-- 인자: `input`은 URL 문자열이나 `Request`, `init`은 `method`, `headers`, `body`, `signal` 같은 요청 옵션이다.
-- 반환/cleanup: `Promise<Response>`를 반환한다. 요청을 끊으려면 `init.signal`에 `AbortSignal`을 넘기고 cleanup에서 `abort()`를 호출한다.
-
-```tsx title="fetch usage"
-const loadUser = async (userId: string, signal: AbortSignal) => {
-  const response = await fetch(`/api/users/${userId}`, {
-    signal,
-  });
-
-  if (!response.ok) {
-    throw new Error(`사용자 요청 실패: ${response.status}`);
-  }
-
-  return response.json();
-};
-```
-
-### `Response.ok`, `Response.status`, `Response.json`
-
-- 선언/사용: `response.ok`, `response.status`, `response.json()`
-- 속성/인자: `ok`는 HTTP status가 200~299인지 나타낸다. `status`는 숫자 상태 코드다. `json()`은 인자를 받지 않는다.
-- 반환/cleanup: `json()`은 body를 한 번 읽고 `Promise`로 파싱 결과를 돌려준다. 같은 response body를 다시 읽을 수 없다.
-
-```tsx title="response contract"
-const readUsers = async (response: Response) => {
-  if (!response.ok) {
-    throw new Error(`목록 요청 실패: ${response.status}`);
-  }
-
-  const body: { users: { id: string; name: string }[] } = await response.json();
-
-  return body.users;
-};
-```
-
-### `AbortController`와 `signal`
-
-- 선언/사용: `const controller = new AbortController()`
-- 속성/인자: `controller.signal`을 `fetch` 옵션에 넘긴다.
-- 반환/cleanup: `abort()`는 반환값이 없다. effect cleanup에서 호출하면 진행 중인 요청은 `AbortError`로 끝난다.
-
-```tsx title="abort cleanup"
-useEffect(() => {
-  const controller = new AbortController();
-
-  void fetch("/api/users", {
-    signal: controller.signal,
-  });
-
-  return () => {
-    controller.abort();
-  };
-}, []);
-```
-
-### `useEffect` async 패턴
-
-- 선언/사용: effect callback 자체를 `async`로 만들지 않는다. 안쪽에 `async` 함수를 만들고 `void`로 호출한다.
-- 인자: dependency 배열에는 요청 조건으로 쓰는 state와 props를 넣는다.
-- 반환/cleanup: effect는 cleanup 함수나 `undefined`만 반환해야 한다. `Promise`를 반환하면 cleanup으로 동작하지 않는다.
-
-```tsx title="effect async pattern"
-useEffect(() => {
-  const controller = new AbortController();
-
-  const load = async () => {
-    const response = await fetch(`/api/users?q=${query}`, {
-      signal: controller.signal,
-    });
-    const body: { users: { id: string; name: string }[] } =
-      await response.json();
-
-    setUsers(body.users);
-  };
-
-  void load();
-
-  return () => {
-    controller.abort();
-  };
-}, [query]);
-```
-
-### loading/error/empty 상태 계약
-
-- 선언/사용: `isLoading`, `errorMessage`, `items`를 한 흐름에서 갱신한다.
-- 속성/인자: loading은 요청 중인지, error는 사용자에게 보여 줄 실패 메시지인지, empty는 성공했지만 보여 줄 데이터가 없는지 나타낸다.
-- 반환/cleanup: 요청 시작 때 error를 비우고, 실패하면 items를 비운다. empty는 state로 따로 저장하지 않고 렌더 직전에 계산한다.
-
-```tsx title="state contract"
-const UserResult = () => {
-  const [users, setUsers] = useState<{ id: string; name: string }[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string>();
-
-  const hasEmptyResult = !isLoading && !errorMessage && users.length === 0;
-
-  return (
-    <section>
-      {isLoading && <p>불러오는 중입니다.</p>}
-      {errorMessage && <p role="alert">{errorMessage}</p>}
-      {hasEmptyResult && <p>검색 결과가 없습니다.</p>}
-      {!isLoading && !errorMessage && users.length > 0 && (
-        <ul>
-          {users.map((user) => (
-            <li key={user.id}>{user.name}</li>
-          ))}
-        </ul>
-      )}
-    </section>
-  );
-};
-```
-
-## 언제 쓰나
-
-- 검색어, 필터, 페이지가 바뀔 때마다 같은 화면에서 다시 요청할 때 쓴다.
-- 늦게 끝난 이전 요청이 최신 화면을 덮으면 안 될 때 쓴다.
-- 작은 화면에서 서버 상태 라이브러리 없이 `fetch` 흐름을 직접 제어할 때 쓴다.
+- 화면이 열릴 때 목록이나 상세 데이터를 불러올 때 쓴다.
+- 검색어, 필터, 페이지, route param이 바뀔 때 다시 요청할 때 쓴다.
+- 이전 요청이 늦게 끝나도 최신 화면을 덮으면 안 될 때 쓴다.
+- 서버 상태 라이브러리 없이 작은 범위의 요청 상태만 직접 제어할 때 쓴다.
 
 ## 바로 쓰는 코드
 
-요청 조건은 state로 두고, effect cleanup에서 이전 요청을 끊는다. 화면 반영 직전에는 요청 번호로 최신 응답만 통과시킨다.
+effect callback은 `async`가 될 수 없으므로 안쪽에서 async 함수를 만들고 `void`로 호출한다. 요청 시작, 성공, 빈 결과, 실패를 같은 state 흐름에서 갱신한다.
 
-:::warning
-`AbortController`만 믿으면 이미 이어진 후속 로직에서 낡은 응답이 반영될 수 있다.
-:::
+```tsx title="useUsers.tsx"
+type LoadState =
+  | { status: "loading" } // [!code highlight]
+  | { status: "success"; users: { id: string; name: string }[] }
+  | { status: "empty"; users: [] }
+  | { status: "error"; message: string };
 
-```tsx title="UserList.tsx"
-const buildUsersUrl = (query) => {
-  const params = new URLSearchParams();
-  const keyword = query.trim(); // [!code highlight]
-
-  if (keyword) {
-    params.set("q", keyword);
-  }
-
-  const queryString = params.toString();
-
-  return queryString ? `/api/users?${queryString}` : "/api/users";
-};
-
-const toUserRow = (user) => ({
-  id: user.id,
-  lastLoginText: user.lastLoginAt
-    ? new Intl.DateTimeFormat("ko-KR").format(new Date(user.lastLoginAt))
-    : "로그인 기록 없음",
-  title,
-});
-
-const UserList = () => {
-  const [query, setQuery] = useState("");
-  const [retryCount, setRetryCount] = useState(0);
-  const [users, setUsers] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [errorMessage, setErrorMessage] = useState();
-  const requestIdRef = useRef(0);
-
+const useUsers = (query: string) => {
+  const [state, setState] = useState<LoadState>({ status: "loading" });
   useEffect(() => {
-    const controller = new AbortController();
-    const requestId = requestIdRef.current + 1;
-    requestIdRef.current = requestId; // [!code highlight]
-
-    const canCommit = () =>
-      !controller.signal.aborted && requestIdRef.current === requestId;
-
+    const controller = new AbortController(); // [!code highlight]
     const loadUsers = async () => {
-      setIsLoading(true);
-      setErrorMessage(undefined);
-
+      setState({ status: "loading" });
       try {
-        const response = await fetch(buildUsersUrl(query), {
+        const response = await fetch(`/api/users?q=${encodeURIComponent(query.trim())}`, {
           signal: controller.signal, // [!code highlight]
         });
-
-        if (!response.ok) {
-          throw new Error("사용자 목록을 불러오지 못했습니다.");
-        }
-
-        const body = await response.json();
-
-        if (!canCommit()) {
-          return; // Ignore stale responses. // [!code highlight]
-        }
-
-        setUsers(body.users.map(toUserRow));
-      } catch (error) {
-        if (error instanceof DOMException && error.name === "AbortError") {
-          return;
-        }
-
-        if (!canCommit()) {
-          return; // Keep stale errors off the screen. // [!code highlight]
-        }
-
-        setUsers([]);
-        setErrorMessage(
-          error instanceof Error ? error.message : "알 수 없는 오류가 발생했습니다.",
+        if (!response.ok) throw new Error(`요청 실패: ${response.status}`);
+        const body: { users: { id: string; name: string }[] } = await response.json();
+        if (controller.signal.aborted) return; // [!code highlight]
+        setState(
+          body.users.length > 0
+            ? { status: "success", users: body.users }
+            : { status: "empty", users: [] },
         );
-      } finally {
-        if (canCommit()) {
-          setIsLoading(false);
-        }
+      } catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError") return;
+        setState({ status: "error", message: "사용자 목록을 불러오지 못했습니다." });
       }
     };
 
     void loadUsers();
-
-    return () => {
-      controller.abort(); // [!code highlight]
-    };
-  }, [query, retryCount]);
-
-  const retry = () => {
-    setRetryCount((count) => count + 1);
-  };
-
-  const hasEmptyResult = !isLoading && !errorMessage && users.length === 0;
-
-  return (
-    <section>
-      <label htmlFor="user-query">사용자 검색</label>
-      <input
-        id="user-query"
-        onChange={(event) => setQuery(event.target.value)}
-        value={query}
-      />
-
-      {isLoading && <p>불러오는 중입니다.</p>}
-
-      {errorMessage && (
-        <div role="alert">
-          <p>{errorMessage}</p>
-          <button type="button" onClick={retry}>
-            다시 시도
-          </button>
-        </div>
-      )}
-
-      {hasEmptyResult && <p>검색 결과가 없습니다.</p>}
-
-      {!isLoading && !errorMessage && users.length > 0 && (
-        <ul>
-          {users.map((user) => (
-            <li key={user.id}>{user.title}</li>
-          ))}
-        </ul>
-      )}
-    </section>
-  );
+    return () => controller.abort(); // [!code highlight]
+  }, [query]);
+  return state;
 };
 ```
 
 ## 실수 포인트
 
-- 취소와 최신 요청 확인은 같이 둔다.
-- URL 생성 기준과 effect dependency 기준을 맞춘다.
-- retry는 같은 effect를 다시 실행하게 둔다.
-- API 응답은 화면 모델로 바꾼 뒤 렌더링한다.
-
-## 참고
-
-- [MDN Using fetch](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch)
+- `useEffect(async () => {})`처럼 effect가 Promise를 반환하게 만들지 않는다.
+- `response.ok`를 확인하지 않으면 HTTP error가 성공 흐름처럼 처리된다.
+- cleanup에서 abort하지 않으면 unmount 뒤 state 갱신이나 낡은 응답 반영이 생길 수 있다.
+- 빈 배열을 `success`로만 처리하면 사용자에게 로딩 종료와 빈 결과를 구분해 보여 주기 어렵다.
+- abort된 요청은 `AbortError`로 들어오므로 사용자용 error UI로 바꾸지 않는다.

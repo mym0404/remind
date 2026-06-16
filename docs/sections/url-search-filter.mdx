@@ -6,13 +6,14 @@
 
 ## 핵심 개념
 
-- useSearchParams로 초기 검색어를 읽는다.
-- 검색어 변경 시 query string을 갱신한다.
-- 빈 검색어는 query param을 제거한다.
+- 초기 검색어는 URL에서 읽는다.
+- input 변경은 query param을 갱신한다.
+- 빈 값은 param을 제거한다.
+- 필터링은 순수 함수가 맡는다.
 
 ## 풀이 흐름
 
-검색어 state를 따로 두지 않고 `searchParams.get("q")`를 화면 기준값으로 쓴다. input이 바뀌면 새 `URLSearchParams`를 만들고 `q`를 set/delete한다. 불필요한 history가 쌓이지 않게 replace 옵션을 쓴다.
+`useSearchParams`로 현재 query를 읽고 input change에서 같은 key를 갱신한다. 목록은 `filterProducts` 결과만 렌더링한다.
 
 ## 핵심 코드
 

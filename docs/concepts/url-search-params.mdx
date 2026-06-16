@@ -2,188 +2,46 @@
 
 ## API reference
 
-`URLSearchParams`는 query string을 읽고 고치는 브라우저 API다. React Router를 쓰는 화면에서는 `useSearchParams`가 이 값을 URL과 연결해 준다.
+`URLSearchParams`는 query string을 읽고 고치는 브라우저 API다.
 
-```ts title="주요 선언"
-type URLSearchParamsInit =
-  | string
-  | string[][]
-  | Record<string, string>
-  | URLSearchParams;
+- `new URLSearchParams(init)`: `"?q=react"` 같은 문자열이나 기존 params를 읽는다.
+- `get(name)`: 첫 값을 읽고 없으면 `null`을 반환한다.
+- `set(name, value)`: 값을 문자열로 저장하고 기존 값을 덮어쓴다.
+- `delete(name)`: key를 query string에서 제거한다.
+- `toString()`: 앞의 `?` 없이 query string을 만든다.
+- `useSearchParams()`: React Router에서 URL search와 setter를 받는다. setter는 navigation이므로 입력 동기화에는 `{ replace: true }`를 같이 쓴다.
 
-interface URLSearchParams {
-  get(name: string): string | null;
-  set(name: string, value: string): void;
-  delete(name: string): void;
-  has(name: string): boolean;
-  toString(): string;
-}
+## 쓰는 곳
 
-declare const URLSearchParams: {
-  new (init?: URLSearchParamsInit): URLSearchParams;
-};
-```
-
-```tsx title="URLSearchParams.tsx"
-const params = new URLSearchParams("?q=react&tag=router");
-
-const query = params.get("q") ?? "";
-const hasTag = params.has("tag");
-
-params.set("q", query.trim());
-
-if (hasTag) {
-  params.delete("tag");
-}
-
-const queryString = params.toString(); // "q=react"
-```
-
-React Router의 `setSearchParams`는 URL을 바꾸는 navigation이다. 기본 동작은 push이고, `{ replace: true }`를 넘기면 현재 history entry를 갈아낀다.
-
-```ts title="React Router에서 자주 쓰는 형태"
-type SearchParamSetter = (
-  nextInit:
-    | URLSearchParams
-    | Record<string, string>
-    | ((prev: URLSearchParams) => URLSearchParams),
-  navigateOptions?: { replace?: boolean },
-) => void;
-
-declare const useSearchParams: () => [URLSearchParams, SearchParamSetter];
-```
-
-```tsx title="RouterSearchParams.tsx"
-const [searchParams, setSearchParams] = useSearchParams();
-
-const page = Number(searchParams.get("page") ?? "1");
-const nextParams = new URLSearchParams(searchParams);
-
-nextParams.set("page", String(page + 1));
-
-// 뒤로 가기로 이전 page를 다시 봐야 하면 push를 쓴다.
-setSearchParams(nextParams);
-
-// 입력 중인 검색어처럼 history를 늘리지 않아야 하면 replace를 쓴다.
-setSearchParams(nextParams, { replace: true });
-```
-
-## 언제 쓰나
-
-- 검색어, 필터, 정렬처럼 공유 가능한 목록 조건을 URL에 남길 때.
-- 새로고침, 공유 링크, 뒤로 가기에서 같은 조건을 복원해야 할 때.
+- 검색어, 필터, 정렬, page처럼 공유 링크에 남겨야 하는 화면 state에 쓴다.
+- 새로고침, 뒤로 가기, URL 공유 뒤에도 같은 조건을 복원해야 할 때 쓴다.
 
 ## 바로 쓰는 코드
 
-`useSearchParams`로 query string을 읽고 쓴다. URL을 검색 조건의 source of truth로 둔다.
+```tsx title="SearchFilters.tsx"
+const [searchParams, setSearchParams] = useSearchParams();
 
-```tsx title="ArticleListPage.tsx"
-const categories = ["all", "docs", "api"];
+const query = searchParams.get("q") ?? "";
 
-const articles = [
-  // ...
-];
+const syncQuery = (nextQuery: string) => {
+  const nextParams = new URLSearchParams(searchParams); // [!code highlight]
+  const trimmedQuery = nextQuery.trim();
 
-const isCategory = (value): value is Category =>
-  categories.some((category) => category === value);
+  if (trimmedQuery) {
+    nextParams.set("q", trimmedQuery);
+    nextParams.delete("page");
+  } else {
+    nextParams.delete("q");
+    nextParams.delete("page");
+  }
 
-const ArticleListPage = () => {
-  const [searchParams, setSearchParams] = useSearchParams();
-
-  // Query strings are external input; normalize before rendering.
-  const query = searchParams.get("q") ?? ""; // [!code highlight]
-  const categoryParam = searchParams.get("category") ?? "all";
-  const category = isCategory(categoryParam) ? categoryParam : "all"; // [!code highlight]
-  const bookmarkedOnly = searchParams.get("bookmarked") === "true"; // [!code highlight]
-
-  const updateSearchParams = ({
-    nextBookmarkedOnly = bookmarkedOnly,
-    nextCategory = category,
-    nextQuery = query,
-  }) => {
-    const nextParams = new URLSearchParams(searchParams); // [!code highlight]
-    const trimmedQuery = nextQuery.trim();
-
-    if (trimmedQuery) {
-      nextParams.set("q", trimmedQuery);
-    } else {
-      nextParams.delete("q");
-    }
-
-    if (nextCategory === "all") {
-      nextParams.delete("category");
-    } else {
-      nextParams.set("category", nextCategory);
-    }
-
-    if (nextBookmarkedOnly) {
-      nextParams.set("bookmarked", "true");
-    } else {
-      nextParams.delete("bookmarked");
-    }
-
-    // Avoid one history entry per keystroke.
-    setSearchParams(nextParams, { replace: true }); // [!code highlight]
-  };
-
-  const visibleArticles = useMemo(() => {
-    const normalizedQuery = query.trim().toLowerCase();
-
-    return articles.filter((article) => {
-      const matchesQuery = article.title.toLowerCase().includes(normalizedQuery);
-      const matchesCategory =
-        category === "all" || article.category === category;
-      const matchesBookmark = !bookmarkedOnly || article.bookmarked;
-
-      return matchesQuery && matchesCategory && matchesBookmark;
-    });
-  }, [bookmarkedOnly, category, query]);
-
-  const handleQueryChange = (event) => {
-    updateSearchParams({ nextQuery: event.target.value });
-  };
-
-  const handleCategoryChange = (event) => {
-    const nextCategory = event.target.value;
-
-    if (isCategory(nextCategory)) {
-      updateSearchParams({ nextCategory });
-    }
-  };
-
-  return (
-    <section>
-      <input onChange={handleQueryChange} value={query} />
-
-      <select onChange={handleCategoryChange} value={category}>
-        {/* ... */}
-      </select>
-
-      <input
-        checked={bookmarkedOnly}
-        onChange={(event) =>
-          updateSearchParams({ nextBookmarkedOnly: event.target.checked })
-        }
-        type="checkbox"
-      />
-
-      {visibleArticles.map((article) => (
-        <article key={article.title}>{article.title}</article>
-      ))}
-    </section>
-  );
+  setSearchParams(nextParams, { replace: true }); // [!code highlight]
 };
 ```
 
 ## 실수 포인트
 
-:::warning
-URL과 React state를 둘 다 source of truth로 두면 새로고침, 공유 링크, 뒤로 가기에서 조건이 어긋난다.
-:::
-
-- enum성 필터는 허용값으로 좁힌 뒤 기본값으로 정규화한다.
-- 기존 `searchParams`를 복사한 뒤 필요한 key만 `set` 또는 `delete`한다.
-
-## 참고
-
-- [React Router useSearchParams](https://reactrouter.com/api/hooks/useSearchParams)
+- URL 값은 항상 문자열이라는 점을 잊지 않는다.
+- 값이 비면 빈 문자열로 남기지 말고 `delete`한다.
+- 기존 `searchParams`를 직접 바꾸지 말고 `new URLSearchParams(searchParams)`로 복사한다.
+- URL과 React state를 둘 다 source of truth로 두지 않는다.

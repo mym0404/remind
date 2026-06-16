@@ -2,21 +2,27 @@
 
 ## API reference
 
-이 문서는 React Router의 declarative routing 기준이다. `BrowserRouter` 안에서 `Routes`와 `Route`를 선언하고, 중첩 화면은 부모 route의 `Outlet` 자리에 렌더링한다.
+- `BrowserRouter`: 브라우저 주소와 history를 React Router에 연결한다.
+- `Routes`/`Route`: 현재 URL에 맞는 route element를 고른다.
+- `Link`/`NavLink`: 새로고침 없이 이동한다. 현재 route 스타일이 필요하면 `NavLink`를 쓴다.
+- `useParams`: `:projectId` 같은 dynamic segment 값을 읽는다.
+- `Outlet`: 부모 route 안에서 자식 route element가 렌더링될 자리다.
+- `path="*"`: 앞 route가 매칭되지 않을 때 보여줄 fallback route다.
 
-```tsx title="router-api.tsx"
-import {
-  BrowserRouter,
-  Link,
-  NavLink,
-  Outlet,
-  Route,
-  Routes,
-  useNavigate,
-  useParams,
-} from "react-router";
+## 쓰는 곳
 
-const App = () => (
+- 목록 URL과 상세 URL을 나눌 때 쓴다.
+- 공통 layout 안에서 자식 화면만 바꿀 때 쓴다.
+- 없는 주소를 404 화면으로 처리할 때 쓴다.
+
+## 바로 쓰는 코드
+
+```tsx title="App.tsx"
+import { BrowserRouter, Link, Outlet, Route, Routes, useParams } from "react-router";
+
+const projects = [{ id: "router", title: "라우팅" }];
+
+export const App = () => (
   <BrowserRouter>
     <Routes>
       <Route path="/projects" element={<ProjectsLayout />}>
@@ -28,124 +34,28 @@ const App = () => (
   </BrowserRouter>
 );
 
-const ProjectsLayout = () => (
-  <main>
-    <nav>
-      <NavLink to="/projects">목록</NavLink>
-      <Link to="/projects/router">라우팅</Link>
-    </nav>
-    <Outlet />
-  </main>
-);
-
-const ProjectDetail = () => {
-  const { projectId } = useParams<"projectId">();
-  const navigate = useNavigate();
-
-  return (
-    <article>
-      <h1>{projectId}</h1>
-      <button type="button" onClick={() => navigate("/projects")}>
-        목록으로
-      </button>
-    </article>
-  );
-};
-```
-
-- `BrowserRouter`: 브라우저 주소를 읽고 쓰는 router다. 보통 앱 루트에서 한 번 감싼다. 주요 props는 `basename?: string`, `children?: React.ReactNode`, `window?: Window`다.
-- `Routes`: 현재 URL과 가장 잘 맞는 `Route` 하나를 고른다. 자식으로 `Route`만 둔다.
-- `Route`: `path`는 URL 패턴이고, `element`는 매칭됐을 때 렌더링할 JSX다. `index` route는 부모 path와 정확히 같을 때 렌더링된다.
-- `Outlet`: 부모 route의 element 안에서 자식 route element가 들어갈 위치다.
-- `Link`: 페이지 새로고침 없이 `to` 주소로 이동한다.
-- `NavLink`: `Link`처럼 이동하고, 현재 주소와 맞는지에 따라 `isActive` 상태를 스타일에 쓸 수 있다.
-- `useParams`: `:projectId` 같은 route param을 읽는다. 값은 문자열이거나 없을 수 있으므로 조회 실패 처리는 따로 둔다.
-- `useNavigate`: 저장 후 이동, 권한 확인 후 이동, 뒤로 가기처럼 코드 흐름 안에서 이동해야 할 때 쓴다.
-- Fallback route: `path="*"`는 앞 route가 아무것도 매칭하지 못했을 때 렌더링된다. 더 구체적인 route 뒤에 둔다.
-
-## 언제 쓰나
-
-- 목록/상세 URL을 나누고 route param으로 데이터를 찾을 때 쓴다.
-- 공통 레이아웃 아래 화면만 바꿀 때 nested route를 쓴다.
-- 없는 주소를 404로 보내야 하면 fallback route를 둔다.
-
-## 바로 쓰는 코드
-
-Route 선언, nested route, param 조회만 남기면 된다.
-
-```tsx title="App.tsx"
-const projects = [
-  { id: "router", title: "라우팅" },
-  { id: "search", title: "검색" },
-];
-
-// ...
-
-const App = () => (
-  <BrowserRouter>
-    <Routes>
-      <Route path="/projects" element={<ProjectsLayout />}>
-        <Route index element={<ProjectList />} />
-        <Route path=":projectId" element={<ProjectDetail />} /> {/* [!code highlight] */}
-      </Route>
-      <Route path="*" element={<NotFound />} />
-    </Routes>
-  </BrowserRouter>
-);
-
-const ProjectsLayout = () => (
-  <main>
-    <h1>프로젝트</h1>
-    <Outlet /> {/* nested route renders here */}
-  </main>
-);
+const ProjectsLayout = () => <main><Outlet /></main>;
 
 const ProjectList = () => (
   <ul>
     {projects.map((project) => (
-      <li key={project.id}>
-        <Link to={`/projects/${project.id}`}>{project.title}</Link>
-      </li>
+      <li key={project.id}><Link to={`/projects/${project.id}`}>{project.title}</Link></li>
     ))}
   </ul>
 );
 
 const ProjectDetail = () => {
-  const { projectId } = useParams<"projectId">(); // [!code highlight]
-  // URL params are strings; lookup can fail.
+  const { projectId } = useParams<"projectId">();
   const project = projects.find((project) => project.id === projectId);
-
-  if (!project) {
-    return <NotFound />; // [!code highlight]
-  }
-
-  return (
-    <article>
-      <h2>{project.title}</h2>
-      {/* ... */}
-    </article>
-  );
+  return project ? <h1>{project.title}</h1> : <NotFound />;
 };
 
-const NotFound = () => (
-  <section>
-    <h1>페이지를 찾을 수 없습니다.</h1>
-    <p>주소를 확인하고 다시 이동하세요.</p>
-  </section>
-);
+const NotFound = () => <h1>페이지를 찾을 수 없습니다.</h1>;
 ```
-
-:::warning
-`useParams<"projectId">()`는 param 이름만 좁힌다. 값 검증과 조회 실패 처리는 직접 한다.
-:::
 
 ## 실수 포인트
 
-- `:projectId`처럼 선언한 이름과 `useParams`에서 읽는 이름을 다르게 쓰지 않는다.
-- 부모 route에는 자식 화면이 들어갈 위치에 `Outlet`을 둔다.
-- `path="*"` fallback route는 더 구체적인 route보다 뒤에 둔다.
-- 단순 이동 UI는 `Link`나 `NavLink`를 쓰고, 저장 후 이동·권한 검사 후 이동·뒤로 가기처럼 명령형 흐름에만 `useNavigate`를 쓴다.
-
-## 참고
-
-- [React Router Routing](https://reactrouter.com/start/declarative/routing)
+- route의 `:projectId` 이름과 `useParams`에서 읽는 이름을 다르게 쓰지 않는다.
+- 부모 route에 자식 화면을 보여줄 `Outlet`을 빼먹지 않는다.
+- `path="*"` route는 구체적인 route보다 뒤에 둔다.
+- param 값은 문자열이거나 없을 수 있으므로 상세 데이터 조회 실패를 처리한다.

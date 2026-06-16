@@ -6,13 +6,14 @@ scroll 위치와 row 높이로 보이는 구간만 렌더링한다.
 
 ## 핵심 개념
 
-- getVisibleRange를 구현한다.
-- overscan을 적용한다.
-- 전체 row를 한 번에 렌더링하지 않는다.
+- scroll geometry로 visible range를 계산한다.
+- overscan은 range를 넓히되 boundary를 넘지 않는다.
+- spacer가 렌더링하지 않은 높이를 보존한다.
+- DOM에는 visible row만 남긴다.
 
 ## 풀이 흐름
 
-scrollTop을 rowHeight로 나눠 첫 visible index를 구한다. viewport 높이로 visible count를 계산하고 overscan만큼 앞뒤를 넓힌다. 렌더링은 이 범위만 slice하고, 전체 높이는 spacer로 유지한다.
+`getVisibleRange`에서 start/end와 spacer height를 계산한다. component는 그 range만 slice해서 렌더링한다.
 
 ## 핵심 코드
 

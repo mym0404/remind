@@ -6,13 +6,13 @@
 
 ## 핵심 개념
 
-- React Router Routes를 구성한다.
-- useParams로 id를 읽는다.
-- 없는 id는 404 fallback을 보여준다.
+- route param이 상세 화면의 source다.
+- `findArticle`은 id 조회만 맡는다.
+- 없는 id는 상세가 아니라 fallback이다.
 
 ## 풀이 흐름
 
-목록은 `/`, 상세는 `/articles/:articleId`로 둔다. 목록 item은 `Link`로 이동하고, 상세 컴포넌트는 `useParams`로 id를 읽어 데이터를 찾는다. 데이터가 없으면 같은 상세 영역에서 404 heading을 렌더링한다.
+목록은 `Link`로 상세 URL을 만든다. 상세 route는 `useParams`의 id로 article을 찾고 없으면 404를 렌더링한다.
 
 ## 핵심 코드
 

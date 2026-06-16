@@ -2,258 +2,62 @@
 
 ## API reference
 
-이 문서는 라이브러리를 직접 import하지 않은 예시도 다룬다. TanStack Query를 쓴다면 보통 아래 React API 형태로 읽으면 된다. v5 기준으로 hook과 `QueryClient` 메서드는 객체 하나를 인자로 받는다.
+- `queryKey`: cache identity다. `queryFn`이 읽는 id, filter, page 같은 입력은 key에도 넣는다.
+- `queryFn`: 서버 데이터를 반환하는 async 함수다. 실패는 `throw`로 드러낸다.
+- loading/error/data state: 로딩은 `isPending`, 오류는 `isError`와 `error`, 성공 데이터는 `data`로 분기한다.
+- `invalidateQueries`: matching query를 stale로 만들고, 활성 query가 있으면 다시 가져오게 한다.
+- `staleTime`: 데이터를 fresh로 보는 시간이다. 이 시간 안에서는 mount, focus 같은 refetch trigger가 와도 새 요청을 줄일 수 있다.
 
-```tsx title="react-query-api-shape.tsx"
-import type { ReactNode } from "react";
-import {
-  QueryClient,
-  QueryClientProvider,
-  useMutation,
-  useQuery,
-  useQueryClient,
-} from "@tanstack/react-query";
+## 쓰는 곳
 
-type Todo = { id: string; title: string; done: boolean };
-
-declare const fetchTodos: (userId: string) => Promise<Todo[]>;
-declare const createTodo: (title: string) => Promise<Todo>;
-
-const queryClient = new QueryClient();
-
-const AppProviders = ({ children }: { children: ReactNode }) => (
-  <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-);
-
-const Todos = ({ userId }: { userId?: string }) => {
-  const queryClient = useQueryClient();
-
-  const todosQuery = useQuery({
-    queryKey: ["todos", { userId }] as const,
-    queryFn: () => fetchTodos(userId ?? ""),
-    enabled: userId !== undefined,
-    staleTime: 30_000,
-  });
-
-  const createTodoMutation = useMutation({
-    mutationFn: createTodo,
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["todos"] });
-    },
-  });
-
-  if (todosQuery.status === "pending") {
-    return <p>불러오는 중</p>;
-  }
-
-  if (todosQuery.status === "error") {
-    return <p>{todosQuery.error.message}</p>;
-  }
-
-  return (
-    <button
-      disabled={createTodoMutation.isPending}
-      onClick={() => createTodoMutation.mutate("새 할 일")}
-    >
-      {todosQuery.data.length}개 중 추가
-    </button>
-  );
-};
-```
-
-- `QueryClientProvider`는 cache와 mutation 상태를 들고 있는 `QueryClient`를 React tree에 공급한다.
-- `useQuery`의 `queryKey`는 cache 주소다. `queryFn`이 읽는 `userId`, `status`, `page` 같은 값은 key에도 넣는다.
-- `useQuery`의 `queryFn`은 서버 데이터를 반환하는 Promise 함수다. 실패는 throw로 드러낸다.
-- `enabled`가 `false`면 query가 자동으로 실행되지 않는다. 필요한 입력이 아직 없을 때 쓴다.
-- `staleTime`은 데이터를 fresh로 볼 시간이다. 이 시간이 지나면 다음 mount, focus, reconnect에서 refetch 대상이 된다.
-- `useMutation`의 `mutationFn`은 생성, 수정, 삭제 요청을 보낸다. 성공 뒤에는 `onSuccess`에서 관련 query를 invalidate한다.
-- `invalidateQueries({ queryKey })`는 해당 key와 맞는 cache를 stale로 표시하고, 활성 query를 다시 가져오게 한다.
-- 상태 필드는 `status`, `isPending`, `isError`, `isSuccess`, `data`, `error`를 주로 본다. mutation도 `isPending`, `isError`, `isSuccess`, `error`를 같은 감각으로 쓴다.
-
-## 언제 쓰나
-
-server state는 서버가 원본이고, 화면 밖에서도 바뀔 수 있는 데이터다. Todo 목록, 사용자 정보, 결제 내역처럼 네트워크로 읽는 값이 여기에 속한다.
+서버가 원본이고 화면 밖에서도 바뀔 수 있는 값에 쓴다. Todo 목록, 사용자 정보, 결제 내역처럼 네트워크로 읽는 값이 대표적이다.
 
 입력값, 열린 modal, 선택된 tab처럼 브라우저 안에서만 의미가 있는 값은 `useState`나 `useReducer`로 충분하다.
 
-React Query는 `loading`, `error`, `cache`, `refetch`, mutation 후 동기화를 한 흐름으로 묶고 싶을 때 쓴다. 먼저 데이터가 언제 stale인지 정하면 query key, `staleTime`, invalidate 범위가 좁아진다.
+React Query는 cache, refetch, loading/error/data state, mutation 후 동기화를 한 흐름으로 묶고 싶을 때 쓴다.
 
 ## 바로 쓰는 코드
 
-앱을 `QueryClientProvider`로 감싸고, 데이터를 구분하는 값을 `queryKey`에 넣는다.
-
-```tsx title="TodoList.tsx"
-const TODO_STALE_TIME = 30_000;
-
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      // Treat cached todos as fresh for this window.
-      staleTime: TODO_STALE_TIME, // [!code highlight]
-    },
-  },
-});
-
+```tsx title="todos-query.tsx"
 const todoKeys = {
   all: ["todos"] as const,
-  list: (status) => [...todoKeys.all, { status }] as const, // [!code highlight]
+  list: (status: string) => [...todoKeys.all, { status }] as const,
 };
-
-const fetchTodos = async (status) => {
-  const response = await fetch(`/api/todos?status=${status}`);
-  // ...
-
-  return (await response.json()) as Todo[];
-};
-
-const createTodo = async (title) => {
-  const response = await fetch("/api/todos", {
-    method: "POST",
-    // ...
-    body: JSON.stringify({ title }),
-  });
-  // ...
-
-  return (await response.json()) as Todo;
-};
-
-const toggleTodo = async (todo) => {
-  const response = await fetch(`/api/todos/${todo.id}`, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ done: !todo.done }),
-  });
-  // ...
-
-  return (await response.json()) as Todo;
-};
-
-const TodoList = ({ status }) => {
+const Todos = ({ status }: { status: string }) => {
   const queryClient = useQueryClient();
   const queryKey = todoKeys.list(status);
-
   const todosQuery = useQuery({
     queryKey,
-    queryFn: () => fetchTodos(status),
+    queryFn: async () => {
+      const response = await fetch(`/api/todos?status=${status}`);
+      if (!response.ok) throw new Error("Failed to load todos");
+      return (await response.json()) as Todo[];
+    },
+    staleTime: 30_000,
   });
 
-  const createTodoMutation = useMutation({
-    mutationFn: createTodo,
+  const createTodo = useMutation({
+    mutationFn: async (title: string) => {
+      const response = await fetch("/api/todos", {
+        method: "POST",
+        body: JSON.stringify({ title }),
+      });
+      if (!response.ok) throw new Error("Failed to create todo");
+    },
     onSuccess: () => {
-      // New todos may affect every filtered list.
-      void queryClient.invalidateQueries({ queryKey: todoKeys.all }); // [!code highlight]
-    },
-  });
-
-  const toggleTodoMutation = useMutation({
-    mutationFn: toggleTodo,
-    onMutate: async (todo) => {
-      await queryClient.cancelQueries({ queryKey });
-
-      // Keep the previous cache for rollback.
-      const previousTodos = queryClient.getQueryData<Todo[]>(queryKey);
-
-      queryClient.setQueryData<Todo[]>(queryKey, (oldTodos = []) =>
-        oldTodos.map((item) =>
-          item.id === todo.id ? { ...item, done: !item.done } : item, // [!code highlight]
-        ),
-      );
-
-      return { previousTodos }; // [!code highlight]
-    },
-    onError: (_error, _todo, context) => {
-      if (context?.previousTodos) {
-        queryClient.setQueryData(queryKey, context.previousTodos); // [!code highlight]
-      }
-    },
-    onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: todoKeys.all });
     },
   });
 
-  // ...
-
-  if (todosQuery.isPending) {
-    return <p>불러오는 중</p>;
-  }
-
-  if (todosQuery.isError) {
-    return <p>{todosQuery.error.message}</p>;
-  }
-
-  return (
-    <section>
-      <button
-        disabled={createTodoMutation.isPending}
-        onClick={() => createTodoMutation.mutate("새 할 일")}
-      >
-        추가
-      </button>
-
-      {/* ... render todos and call toggleTodoMutation.mutate(todo). */}
-    </section>
-  );
-};
-
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TodoList status="all" />
-  </QueryClientProvider>
-);
-```
-
-라이브러리 없이 만들 때도 cache key, 저장 시각, stale 판단, 강제 refetch를 분리한다.
-
-```ts title="todo-cache.ts"
-const TODO_STALE_TIME = 30_000;
-const todoStatuses = ["all", "open", "done"];
-const todoCache = {};
-
-const fetchTodos = async (status) => {
-  const response = await fetch(`/api/todos?status=${status}`);
-  // ...
-  return (await response.json()) as Todo[];
-};
-
-const getCachedTodos = async ({
-  status,
-  refetch = false,
-}) => {
-  const cached = todoCache[status];
-  // Fresh enough means no network call.
-  const isFresh =
-    cached !== undefined && Date.now() - cached.updatedAt < TODO_STALE_TIME; // [!code highlight]
-
-  if (!refetch && isFresh) {
-    return cached.data; // [!code highlight]
-  }
-
-  const data = await fetchTodos(status);
-  todoCache[status] = { data, updatedAt: Date.now() }; // [!code highlight]
-
-  return data;
-};
-
-const invalidateTodos = (status) => {
-  if (status !== undefined) {
-    delete todoCache[status];
-    return;
-  }
-
-  todoStatuses.forEach((cachedStatus) => {
-    delete todoCache[cachedStatus];
-  });
+  if (todosQuery.isPending) return <p>불러오는 중</p>;
+  if (todosQuery.isError) return <p>{todosQuery.error.message}</p>;
+  return <button onClick={() => createTodo.mutate("새 할 일")}>{todosQuery.data.length}개</button>;
 };
 ```
 
 ## 실수 포인트
 
-- `queryFn`이 읽는 `status`, `userId`, `page`, 정렬 조건은 `queryKey`에도 들어가야 한다.
-- `staleTime`은 UX 정책이다. 짧으면 refetch 비용을 내고, 길면 오래된 화면을 허용한다.
-- mutation 후에는 좁게 invalidate하거나 optimistic update와 rollback을 함께 둔다.
-- 편집용 draft state를 만들면 원본 cache와 섞지 않는다.
-- 직접 만든 cache는 dedupe, retry, focus refetch, rollback이 붙는 순간 유지 비용이 커진다.
-
-## 참고
-
-- [TanStack Query React Overview](https://tanstack.com/query/latest/docs/framework/react/overview)
+- query key에 입력값을 빼면 cache가 섞인다.
+- 서버 state를 local state로 복사해 오래 들고 있지 않는다.
+- mutation 성공 후 관련 query를 invalidate하지 않으면 stale data가 남는다.
+- `staleTime`을 길게 잡으면 refetch는 줄지만 사용자가 오래된 데이터를 볼 수 있다.

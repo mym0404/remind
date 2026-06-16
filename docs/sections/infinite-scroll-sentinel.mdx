@@ -6,13 +6,13 @@ IntersectionObserver로 sentinel을 관찰하고 다음 page를 append한다.
 
 ## 핵심 개념
 
-- sentinel ref를 observe한다.
-- loading 중 중복 호출을 막는다.
-- unmount 시 observer를 disconnect한다.
+- sentinel ref를 `IntersectionObserver`에 연결한다.
+- callback은 intersecting, hasMore, loading guard를 모두 본다.
+- cleanup은 observer를 disconnect한다.
 
 ## 풀이 흐름
 
-목록 끝에 sentinel div를 두고 ref로 observer에 연결한다. callback에서는 `isIntersecting`, loading guard, hasMore를 모두 확인한 뒤 page를 늘린다. effect cleanup에서 observer를 끊어야 test와 실제 화면이 같이 안정된다.
+목록 끝 sentinel을 observe한다. 교차 시 guard를 통과한 경우에만 다음 page를 append한다.
 
 ## 핵심 코드
 

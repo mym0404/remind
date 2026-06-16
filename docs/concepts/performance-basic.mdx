@@ -2,284 +2,64 @@
 
 ## API reference
 
-성능 API는 렌더링을 없애는 도구가 아니라 같은 입력에서 다시 쓸 값을 고정하는 도구다. 먼저 Profiler로 느린 지점을 확인하고, 참조가 실제 경계를 지나갈 때만 캐시한다.
+- `React.memo`: 이전 props와 다음 props가 같으면 component render를 건너뛸 수 있다. props가 매번 새 객체나 새 함수면 효과가 작다.
+- `useMemo`: render 중 계산한 값을 dependency가 바뀔 때까지 다시 쓴다. 계산 비용이 크거나 memoized child에 같은 참조를 넘겨야 할 때만 둔다.
+- `useCallback`: 함수 참조를 dependency가 바뀔 때까지 다시 쓴다. callback 내부에서 읽는 값은 dependency에 포함한다.
+- `Profiler`: 감싼 subtree의 commit 비용을 측정한다. `actualDuration`으로 이번 render 비용을 보고, 병목 위치를 좁힌 뒤 최적화한다.
+- dependency array: memoized value나 callback이 읽는 props, state, render 내부 값을 적는 입력 목록이다. 빠뜨리면 오래된 값을 읽고, 불필요하게 넣으면 캐시가 자주 무효화된다.
 
-### `React.memo`
+## 쓰는 곳
 
-`React.memo`는 component를 받아 memoized component를 돌려준다. props가 이전 render와 같으면 React는 이 component의 render를 건너뛸 수 있다.
-
-```ts title="declaration"
-type PropsAreEqual<P> = (prevProps: Readonly<P>, nextProps: Readonly<P>) => boolean;
-
-declare function memo<P extends object>(
-  Component: (props: P) => ReactNode,
-  arePropsEqual?: PropsAreEqual<P>,
-): (props: P) => ReactNode;
-```
-
-```tsx title="memo-example.tsx"
-type Product = {
-  id: string;
-  name: string;
-  price: number;
-};
-
-const ProductRow = React.memo(({ product }: { product: Product }) => (
-  <li>
-    {product.name}: {product.price}
-  </li>
-));
-
-const ProductList = ({ products }: { products: Product[] }) => (
-  <ul>
-    {products.map((product) => (
-      <ProductRow key={product.id} product={product} />
-    ))}
-  </ul>
-);
-```
-
-### `useMemo`
-
-`useMemo`는 render 중 계산한 값을 dependency가 바뀔 때까지 캐시한다. 반환값은 `calculateValue`가 돌려준 값이다.
-
-```ts title="declaration"
-type DependencyList = readonly unknown[];
-
-declare function useMemo<T>(
-  calculateValue: () => T,
-  dependencies: DependencyList,
-): T;
-```
-
-```tsx title="useMemo-example.tsx"
-const SortedProducts = ({ products }: { products: Product[] }) => {
-  const sortedProducts = useMemo(
-    () => [...products].sort((a, b) => a.price - b.price),
-    [products],
-  );
-
-  return (
-    <ul>
-      {sortedProducts.map((product) => (
-        <li key={product.id}>{product.name}</li>
-      ))}
-    </ul>
-  );
-};
-```
-
-### `useCallback`
-
-`useCallback`은 function 자체를 dependency가 바뀔 때까지 캐시한다. 반환값은 넘긴 callback과 같은 함수이며, memoized child에 안정적인 prop을 넘길 때 주로 쓴다.
-
-```ts title="declaration"
-declare function useCallback<T extends (...args: never[]) => unknown>(
-  callback: T,
-  dependencies: DependencyList,
-): T;
-```
-
-```tsx title="useCallback-example.tsx"
-const Cart = ({ products }: { products: Product[] }) => {
-  const [selectedId, setSelectedId] = useState<string>();
-
-  const selectProduct = useCallback((id: string) => {
-    setSelectedId(id);
-  }, []);
-
-  return (
-    <ul>
-      {products.map((product) => (
-        <SelectableProduct
-          key={product.id}
-          isSelected={product.id === selectedId}
-          product={product}
-          onSelect={selectProduct}
-        />
-      ))}
-    </ul>
-  );
-};
-```
-
-### `Profiler`와 `onRender`
-
-`Profiler`는 감싼 subtree의 commit 비용을 잰다. `onRender` callback은 commit 뒤 호출되며 cached value를 돌려주지 않는다.
-
-```ts title="declaration"
-type ProfilerOnRenderCallback = (
-  id: string,
-  phase: "mount" | "update" | "nested-update",
-  actualDuration: number,
-  baseDuration: number,
-  startTime: number,
-  commitTime: number,
-) => void;
-```
-
-```tsx title="profiler-example.tsx"
-const onRender: ProfilerOnRenderCallback = (
-  id,
-  phase,
-  actualDuration,
-) => {
-  console.table({ id, phase, actualDuration });
-};
-
-const ProductPage = ({ products }: { products: Product[] }) => (
-  <Profiler id="ProductList" onRender={onRender}>
-    <ProductList products={products} />
-  </Profiler>
-);
-```
-
-### Dependency arrays
-
-Dependency array에는 callback이나 계산식 안에서 읽는 props, state, render 안의 변수와 함수를 넣는다. `[]`는 mount 뒤 같은 값을 계속 쓰겠다는 뜻이고, dependency를 빠뜨리면 오래된 값을 읽을 수 있다.
-
-## 언제 쓰나
-
-사용자가 느끼는 지연이 있거나 Profiler에서 병목이 보일 때만 적용한다. 먼저 state 크기, props 변경 범위, 리스트 렌더링 비용을 확인한다.
-
-계산이 가볍다면 렌더링 중에 계산한다. `useMemo`와 `useCallback`은 캐시 무효화 비용보다 참조 안정성이 더 중요할 때 쓴다.
-
-수백 개 이상 item으로 스크롤, 입력, 필터가 끊기면 virtualization을 검토한다. 자주 발생하는 이벤트는 주기적 반응이면 throttle, 마지막 값만 필요하면 debounce를 쓴다.
-
-DOM 크기를 읽은 직후 style을 바꾸는 코드는 layout thrashing을 만들 수 있다. `getBoundingClientRect()` 같은 layout read와 style 변경 같은 layout write는 단계로 나눈다.
+- Profiler에서 특정 subtree의 render 비용이 반복해서 크다고 보일 때 쓴다.
+- `React.memo`로 감싼 child에 안정된 object, array, function props를 넘겨야 할 때 쓴다.
+- 같은 render에서 바로 계산해도 싼 값은 그냥 계산한다.
+- dependency를 맞추기 어렵다면 memoization보다 state 위치와 props 흐름을 먼저 줄인다.
 
 ## 바로 쓰는 코드
 
-계산 가능한 값은 state로 두지 않는다. 캐시와 callback 고정은 실제로 참조가 의미 있는 경계에만 둔다.
+Profiler로 먼저 비용을 보고, 그 다음 같은 경계를 지나는 값과 callback만 고정한다.
 
-```tsx title="PerformanceTaskList.tsx"
-const initialTasks = [
-  { id: "task-1", title: "프로필 저장", done: false },
-  // ...
-];
+```tsx title="measured-memo-boundary.tsx"
+const onRender: ProfilerOnRenderCallback = (id, phase, actualDuration) => {
+  console.table({ id, phase, actualDuration });
+};
 
-const PerformanceTaskList = () => {
-  const [tasks, setTasks] = useState(initialTasks);
-  const [showDone, setShowDone] = useState(true);
-
-  // Cache only if filtering is expensive or the list is large.
-  const visibleTasks = useMemo( // [!code highlight]
-    () => tasks.filter((task) => showDone || !task.done),
-    [showDone, tasks],
+const SearchPanel = ({ query, items }: { query: string; items: Item[] }) => {
+  const visibleItems = useMemo(
+    () => items.filter((item) => item.name.includes(query)),
+    [items, query],
   );
 
-  // Derived value; keep it out of state.
-  const doneCount = tasks.filter((task) => task.done).length; // [!code highlight]
-
-  // Stable because TaskRow is memoized.
-  const toggleTask = useCallback((id) => { // [!code highlight]
-    setTasks((currentTasks) =>
-      currentTasks.map((task) =>
-        task.id === id ? { ...task, done: !task.done } : task,
-      ),
-    );
+  const selectItem = useCallback((id: string) => {
+    trackSelection(id);
   }, []);
 
   return (
-    <section>
-      <p>
-        완료 {doneCount}개 / 전체 {tasks.length}개
-      </p>
-
-      {/* ... */}
-
-      <ul>
-        {visibleTasks.map((task) => (
-          // Use an identity key, not index or Math.random().
-          <TaskRow
-            key={task.id} // [!code highlight]
-            task={task}
-            onToggle={toggleTask}
-          />
-        ))}
-      </ul>
-    </section>
+    <Profiler id="SearchResults" onRender={onRender}>
+      <SearchResults items={visibleItems} onSelect={selectItem} />
+    </Profiler>
   );
 };
 
-const TaskRow = memo(
-  ({ task, onToggle }) => (
-    <li>
-      <label>
-        <input
-          type="checkbox"
-          checked={task.done}
-          onChange={() => onToggle(task.id)}
-        />
-        {task.title}
-      </label>
-    </li>
+const SearchResults = React.memo(
+  ({ items, onSelect }: { items: Item[]; onSelect: (id: string) => void }) => (
+    <ul>
+      {items.map((item) => (
+        <li key={item.id}>
+          <button type="button" onClick={() => onSelect(item.id)}>
+            {item.name}
+          </button>
+        </li>
+      ))}
+    </ul>
   ),
 );
 ```
 
-자주 발생하는 이벤트는 빈도를 줄인다. Layout read/write는 섞지 않는다.
-
-```tsx title="MeasuredPanel.tsx"
-const MeasuredPanel = () => {
-  const panelRef = useRef(null);
-  const [width, setWidth] = useState(0);
-
-  useEffect(() => {
-    let frameId = 0;
-
-    const measure = () => {
-      window.cancelAnimationFrame(frameId);
-
-      // Batch layout reads in the next frame.
-      frameId = window.requestAnimationFrame(() => { // [!code highlight]
-        const rect = panelRef.current?.getBoundingClientRect(); // [!code highlight]
-
-        if (rect) {
-          setWidth(rect.width);
-        }
-      });
-    };
-
-    // Use debounce instead when only the final value matters.
-    const throttledMeasure = throttle(measure, 100); // [!code highlight]
-
-    window.addEventListener("resize", throttledMeasure);
-    measure();
-
-    return () => {
-      window.cancelAnimationFrame(frameId);
-      window.removeEventListener("resize", throttledMeasure);
-    };
-  }, []);
-
-  return (
-    <section ref={panelRef} style={{ inlineSize: "100%" }}>
-      <p>패널 너비: {Math.round(width)}px</p>
-    </section>
-  );
-};
-
-const throttle = (callback, wait) => {
-  // ...
-
-  return () => {
-    // ...
-    callback();
-  };
-};
-```
-
 ## 실수 포인트
 
-- `useCallback`을 써도 자식이 `memo` 경계 밖에서 매번 렌더링되면 효과가 거의 없다.
-- `useMemo` dependency에 새 객체나 새 배열이 들어가면 캐시가 쉽게 무효화된다.
-- 리스트 `key`에 배열 index나 `Math.random()`을 쓰면 remount와 상태 꼬임이 생길 수 있다.
-- virtualization은 item이 많아 스크롤, 입력, 필터가 끊길 때 적용한다.
-- 검색 요청처럼 마지막 입력만 중요하면 debounce를 쓴다.
-- 스크롤 위치 계산처럼 주기적으로 반응해야 하면 throttle을 쓴다.
-- layout read와 layout write를 반복해서 섞으면 layout thrashing이 생긴다.
-
-## 참고
-
-- [React useCallback](https://react.dev/reference/react/useCallback)
+- 측정 없이 `React.memo`, `useMemo`, `useCallback`을 먼저 깔지 않는다.
+- dependency를 줄이려고 callback 내부에서 읽는 값을 빼지 않는다.
+- 매번 새 object나 array를 props로 만들면 `React.memo` 경계가 쉽게 깨진다.
+- `useMemo` 안에서 side effect를 실행하지 않는다.
+- 싼 계산까지 캐시하면 비교와 캐시 유지 비용이 더 클 수 있다.

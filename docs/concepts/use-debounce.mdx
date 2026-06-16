@@ -2,7 +2,16 @@
 
 ## API reference
 
-`useDebounce<T>(value, delay)`는 값 변경을 바로 반영하지 않고, 마지막 변경 뒤 `delay`가 지난 값만 돌려주는 Hook이다.
+- `setTimeout`: `delay` 뒤에 최신 `value`를 debounced state로 반영한다.
+- `clearTimeout`: `value`나 `delay`가 다시 바뀌기 전의 예약을 지운다.
+- `useEffect` deps: `[value, delay]`를 넣어 입력값과 지연 시간이 바뀔 때 timer를 다시 만든다.
+- returned debounced value: 즉시 바뀌는 원본 값이 아니라 마지막 변경 후 `delay`가 지난 값이다.
+
+## 쓰는 곳
+
+- 검색 요청, 자동 저장, resize 계산처럼 짧은 시간에 여러 번 바뀌는 값에서 마지막 변경만 반영할 때 쓴다.
+
+## 바로 쓰는 코드
 
 ```tsx title="useDebounce.ts"
 import { useEffect, useState } from "react";
@@ -24,150 +33,8 @@ export const useDebounce = <T,>(value: T, delay: number): T => {
 };
 ```
 
-- `value`: debounce할 원본 값이다. 문자열, 숫자, 객체처럼 어떤 타입이든 받을 수 있다.
-- `delay`: 마지막 변경 뒤 기다릴 시간이다. 단위는 millisecond다.
-- 반환값: `delay` 동안 새 변경이 없을 때 갱신된 debounced value다.
-
-`useEffect` 안에서 `setTimeout`을 걸고 cleanup에서 `clearTimeout`을 호출한다. `value`나 `delay`가 다시 바뀌면 이전 timer를 지우고 새 timer만 남긴다.
-
-```tsx title="SearchInput.tsx"
-const SearchInput = () => {
-  const [query, setQuery] = useState("");
-  const debouncedQuery = useDebounce(query.trim(), 300);
-
-  return (
-    <input
-      value={query}
-      onChange={(event) => setQuery(event.target.value)}
-      placeholder={debouncedQuery}
-    />
-  );
-};
-```
-
-Fetch와 함께 쓸 때 debounce는 요청을 늦출 뿐, 이미 시작된 요청을 취소하지 않는다. 늦게 도착한 응답을 막으려면 요청 effect 안에서 `AbortController`를 따로 둔다.
-
-```tsx title="useSearch.tsx"
-const useSearch = (query: string) => {
-  const debouncedQuery = useDebounce(query.trim(), 400);
-
-  useEffect(() => {
-    if (debouncedQuery === "") {
-      return;
-    }
-
-    const abortController = new AbortController();
-
-    void fetch(`/api/search?q=${encodeURIComponent(debouncedQuery)}`, {
-      signal: abortController.signal,
-    });
-
-    return () => {
-      abortController.abort();
-    };
-  }, [debouncedQuery]);
-};
-
-```
-
-## 언제 쓰나
-
-입력이 잠깐 멈춘 뒤에만 값이 바뀌어야 할 때 쓴다. 검색, 자동완성, 서버 필터처럼 짧은 시간에 값이 여러 번 바뀌는 화면에 맞다.
-
-원본 `value`는 즉시 바뀌고, debounced state는 마지막 변경 후 `delay`가 지나면 따라간다.
-
-:::warning
-Debounce는 요청 시작만 늦춘다. 이미 시작된 요청은 `AbortController`나 request id로 막아야 늦은 응답이 화면을 덮지 않는다.
-:::
-
-## 바로 쓰는 코드
-
-```tsx title="useDebounce.ts"
-import { useEffect, useState } from "react";
-
-export const useDebounce = <T,>(value: T, delay: number): T => {
-  const [debouncedValue, setDebouncedValue] = useState(value);
-
-  useEffect(() => {
-    const timerId = window.setTimeout(() => {
-      setDebouncedValue(value); // [!code highlight]
-    }, delay);
-
-    return () => {
-      // Drop the previous pending value.
-      window.clearTimeout(timerId); // [!code highlight]
-    };
-  }, [value, delay]);
-
-  return debouncedValue;
-};
-```
-
-```tsx title="SearchPage.tsx"
-const SearchPage = () => {
-  const [query, setQuery] = useState("");
-  const debouncedQuery = useDebounce(query.trim(), 400); // [!code highlight]
-  const [items, setItems] = useState([]);
-
-  useEffect(() => {
-    if (debouncedQuery === "") {
-      setItems([]);
-      return;
-    }
-
-    // Debounce does not cancel in-flight requests.
-    const abortController = new AbortController(); // [!code highlight]
-
-    const search = async () => {
-      try {
-        const response = await fetch(
-          `/api/search?q=${encodeURIComponent(debouncedQuery)}`,
-          { signal: abortController.signal },
-        );
-
-        if (!response.ok) {
-          throw new Error("검색 결과를 가져오지 못했습니다.");
-        }
-
-        const items = (await response.json()) as SearchResult[];
-        setItems(items);
-      } catch {
-        if (abortController.signal.aborted) {
-          return;
-        }
-
-        // error state 처리
-      }
-    };
-
-    void search();
-
-    return () => {
-      abortController.abort(); // [!code highlight]
-    };
-  }, [debouncedQuery]); // [!code highlight]
-
-  return (
-    <section>
-      <input
-        value={query}
-        onChange={(event) => setQuery(event.target.value)}
-      />
-
-      <ul>
-        {/* ... */}
-      </ul>
-    </section>
-  );
-};
-```
-
 ## 실수 포인트
 
-- 요청 effect는 원본 `query`가 아니라 `debouncedQuery`에 걸어 둔다.
-- `delay`를 런타임에 바꿀 수 있으면 dependency에서 빼지 않는다.
-- Debounce와 요청 취소는 별개로 다룬다.
-
-## 참고
-
-- [React useEffect](https://react.dev/reference/react/useEffect)
+- input의 원본 state까지 debounce하면 타이핑 반응이 늦어진다.
+- `delay`를 deps에서 빼면 지연 시간이 바뀌어도 timer가 갱신되지 않는다.
+- cleanup이 없으면 이전 timer가 나중에 실행되어 오래된 값을 반영할 수 있다.

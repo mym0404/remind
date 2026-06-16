@@ -6,13 +6,13 @@
 
 ## 핵심 개념
 
-- table을 감싸는 scroll container를 만든다.
-- thead th에 position: sticky와 top을 준다.
-- sticky header 배경을 지정한다.
+- overflow는 table wrapper가 가진다.
+- header cell은 `position: sticky; top: 0`이다.
+- background와 z-index가 겹침을 막는다.
 
 ## 풀이 흐름
 
-table 바깥에 높이가 제한된 wrapper를 두고 그 wrapper에 `overflow: auto`를 준다. header cell에는 `position: sticky`, `top: 0`, 배경색을 지정한다. sticky 기준은 가장 가까운 scroll container다.
+의미 있는 table 구조는 유지한다. sticky 스타일은 `th`에 주고 scroll 높이는 wrapper에서 제한한다.
 
 ## 핵심 코드
 

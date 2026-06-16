@@ -2,240 +2,55 @@
 
 ## API reference
 
-Controlled input은 현재 값을 React state가 들고, DOM에는 `value`나 `checked`를 내려준다. 사용자가 값을 바꾸면 `onChange`에서 다음 값을 읽어 state를 갱신한다.
+- `value`와 `onChange`를 함께 주면 React state가 현재 값을 가진다.
+- `defaultValue`는 DOM의 초기값만 정하고, 제출 시 `ref`나 `FormData`로 읽는다.
+- checkbox의 선택 상태는 `checked`로 제어하고, 변경값은 `event.currentTarget.checked`에서 읽는다.
+- 한 input은 mount 이후 controlled와 uncontrolled 사이를 오가면 안 된다.
 
-```tsx title="controlled-input-props.tsx"
-type ControlledTextInputProps = {
-  value: string;
-  onChange: (nextValue: string) => void;
-};
+## 쓰는 곳
 
-type ControlledCheckboxProps = {
-  checked: boolean;
-  onChange: (nextChecked: boolean) => void;
-};
-```
+- 입력 즉시 validation, preview, 다른 field 갱신이 필요하면 controlled를 쓴다.
+- 제출 시점에 한 번만 값이 필요하면 uncontrolled가 더 단순하다.
+- 재사용 컴포넌트는 호출자가 값의 주인이어야 할 때만 controlled API를 노출한다.
 
-```tsx title="controlled-input.tsx"
-const ControlledTextInput = ({ value, onChange }: ControlledTextInputProps) => (
-  <input
-    value={value}
-    onChange={(event) => onChange(event.currentTarget.value)}
-  />
-);
+## 바로 쓰는 코드
 
-const ControlledCheckbox = ({
-  checked,
-  onChange,
-}: ControlledCheckboxProps) => (
-  <input
-    type="checkbox"
-    checked={checked}
-    onChange={(event) => onChange(event.currentTarget.checked)}
-  />
-);
-```
-
-Uncontrolled input은 DOM이 현재 값을 들고, React는 초기값만 준다. `defaultValue`와 `defaultChecked`는 mount 때만 반영된다. 제출 직전 값이 필요하면 `ref`나 `FormData`로 읽는다.
-
-```tsx title="uncontrolled-input-props.tsx"
-type UncontrolledProfileFormProps = {
-  defaultName?: string;
-  defaultSubscribed?: boolean;
-};
-```
-
-```tsx title="uncontrolled-ref.tsx"
-const UncontrolledProfileForm = ({
-  defaultName = "",
-  defaultSubscribed = false,
-}: UncontrolledProfileFormProps) => {
-  const nameRef = useRef<HTMLInputElement>(null);
-
-  const submit: React.FormEventHandler<HTMLFormElement> = (event) => {
-    event.preventDefault();
-    const name = nameRef.current?.value ?? "";
-    console.log(name);
-  };
+```tsx title="ControlledText.tsx"
+const ControlledText = () => {
+  const [name, setName] = useState("");
 
   return (
-    <form onSubmit={submit}>
-      <input name="name" ref={nameRef} defaultValue={defaultName} />
+    <label>
+      이름
       <input
-        name="subscribed"
-        type="checkbox"
-        defaultChecked={defaultSubscribed}
+        value={name}
+        onChange={(event) => setName(event.currentTarget.value)}
       />
-      <button type="submit">저장</button>
-    </form>
+    </label>
   );
 };
 ```
 
-`FormData`는 uncontrolled form 전체를 한 번에 읽을 때 편하다. 값은 `FormDataEntryValue | null`로 나오므로 필요한 타입으로 좁혀서 쓴다.
-
-```tsx title="form-data.tsx"
-const FormDataExample = () => {
+```tsx title="UncontrolledForm.tsx"
+const UncontrolledForm = () => {
   const submit: React.FormEventHandler<HTMLFormElement> = (event) => {
     event.preventDefault();
-
     const formData = new FormData(event.currentTarget);
-    const name = String(formData.get("name") ?? "");
-    const subscribed = formData.get("subscribed") === "on";
-
-    console.log({ name, subscribed });
+    console.log(String(formData.get("name") ?? ""));
   };
 
   return (
     <form onSubmit={submit}>
       <input name="name" defaultValue="민지" />
-      <input name="subscribed" type="checkbox" defaultChecked />
       <button type="submit">저장</button>
     </form>
-  );
-};
-```
-
-이벤트 타입은 `currentTarget`을 기준으로 잡는다. `currentTarget`은 핸들러가 붙은 요소이고, `target`은 실제 이벤트가 시작된 요소다. `ChangeEvent<HTMLInputElement>`처럼 입력 요소가 분명한 경우에도 값을 읽을 때는 `currentTarget`을 쓰면 타입 흐름이 덜 흔들린다.
-
-```tsx title="event-typing.tsx"
-const EventTypingExample = () => {
-  const changeName: React.ChangeEventHandler<HTMLInputElement> = (event) => {
-    const input = event.currentTarget;
-    console.log(input.value);
-  };
-
-  const submit: React.FormEventHandler<HTMLFormElement> = (event) => {
-    event.preventDefault();
-
-    const form = event.currentTarget;
-    const formData = new FormData(form);
-    console.log(formData.get("name"));
-  };
-
-  return (
-    <form onSubmit={submit}>
-      <input name="name" onChange={changeName} />
-      <button type="submit">확인</button>
-    </form>
-  );
-};
-```
-
-## 언제 쓰나
-
-재사용 컴포넌트가 controlled와 uncontrolled 사용을 모두 지원해야 할 때 쓴다. Form input, Tabs, Accordion, Modal처럼 값이나 열림 상태의 주인을 호출자가 정하는 경우다.
-
-`value`/`open`이 `undefined`가 아니면 controlled다. `defaultValue`/`defaultOpen`은 uncontrolled 초기값으로만 쓴다.
-
-:::warning
-Controlled 여부는 mount 이후 바뀌면 안 된다. `undefined`에서 문자열이나 boolean으로 바뀌는 흐름은 React 경고와 상태 소유권 변경을 만든다.
-:::
-
-## 바로 쓰는 코드
-
-```tsx title="useControllableState.ts"
-const useControllableState = <Value,>({
-  value,
-  defaultValue,
-  onChange,
-}) => {
-  // `undefined` means uncontrolled; empty string and false are valid controlled values.
-  const isControlled = value !== undefined; // [!code highlight]
-  const [internalValue, setInternalValue] = useState(defaultValue);
-
-  const setValue = (nextValue) => {
-    if (!isControlled) {
-      setInternalValue(nextValue); // [!code highlight]
-    }
-
-    onChange?.(nextValue); // [!code highlight]
-  };
-
-  return {
-    // Controlled state only reports changes; uncontrolled state also stores them.
-    value: isControlled ? value : internalValue,
-    setValue,
-  };
-};
-```
-
-```tsx title="TextInput.tsx"
-const TextInput = ({ value, defaultValue = "", onChange }) => {
-  const input = useControllableState({
-    value,
-    defaultValue,
-    onChange,
-  });
-
-  return (
-    <input
-      value={input.value}
-      onChange={(event) => input.setValue(event.target.value)}
-    />
-  );
-};
-```
-
-```tsx title="Modal.tsx"
-const Modal = ({ open, defaultOpen = false, onOpenChange, children }) => {
-  const modal = useControllableState({
-    value: open, // [!code highlight]
-    defaultValue: defaultOpen,
-    onChange, // [!code highlight]
-  });
-
-  // ...
-
-  return (
-    <>
-      <button type="button" onClick={() => modal.setValue(true)}>
-        설정 열기
-      </button>
-
-      {modal.value ? (
-        <section aria-modal="true" role="dialog">
-          {children}
-          <button type="button" onClick={() => modal.setValue(false)}>
-            닫기
-          </button>
-        </section>
-      ) : undefined}
-    </>
-  );
-};
-```
-
-```tsx title="SettingsExample.tsx"
-const SettingsExample = () => {
-  const [name, setName] = useState("민지");
-  const [isModalOpen, setIsModalOpen] = useState(false);
-
-  return (
-    <>
-      <TextInput value={name} onChange={setName} />
-
-      <TextInput
-        defaultValue="다음 회의에서 확인"
-        onChange={(nextMemo) => console.log(nextMemo)}
-      />
-
-      <Modal open={isModalOpen} onOpenChange={setIsModalOpen}>
-        {/* ... */}
-      </Modal>
-    </>
   );
 };
 ```
 
 ## 실수 포인트
 
-- `value`는 `undefined`에서 문자열로 바꾸지 않는다.
+- `value`만 주고 `onChange`를 빼면 입력이 잠긴다.
 - 값이 없을 수 있으면 `value={name ?? ""}`처럼 문자열을 유지한다.
-- uncontrolled에서 `defaultValue`나 `defaultOpen`을 나중에 바꿔도 현재 값은 바뀌지 않는다.
-- controlled 여부는 `Boolean(value)`로 판별하지 않는다.
-- `value`와 `defaultValue`를 동시에 받지 않도록 props union에서 막는다.
-
-## 참고
-
-- [React controlled input](https://react.dev/reference/react-dom/components/input#controlling-an-input-with-a-state-variable)
+- `defaultValue`를 나중에 바꿔도 현재 DOM 값은 바뀌지 않는다.
+- checkbox의 `value`는 제출값이고, 선택 여부는 `checked`다.

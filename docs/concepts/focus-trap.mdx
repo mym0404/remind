@@ -2,325 +2,62 @@
 
 ## API reference
 
-Focus Trap은 브라우저 focus API와 키보드 이벤트를 얇게 묶은 패턴이다. 핵심은 열린 영역의 현재 focus를 읽고, Tab 순서를 계산하고, 닫힐 때 이전 focus를 복구하는 것이다.
+- `document.activeElement`: trap을 열기 전 focus된 요소를 읽는다. `HTMLElement`가 아니거나 `body`면 복귀 대상으로 쓰지 않는다.
+- `focus()`: 첫 focusable 요소로 focus를 옮기고, Tab 순환 경계에서 반대쪽 요소로 다시 보낸다. 스크롤 튐을 줄이려면 `preventScroll`을 함께 쓴다.
+- focusable selector: `querySelectorAll()`로 후보를 찾되, disabled, hidden, `aria-hidden`, 음수 `tabIndex`는 다시 걸러야 한다.
+- Tab/Escape `keydown`: Tab은 순환시키고, Escape는 닫기 동작에 연결한다.
+- cleanup: 닫힐 때 `keydown` listener를 제거하고, 열기 전 focus가 아직 연결되어 있으면 복귀시킨다.
 
-### `document.activeElement`
+## 쓰는 곳
 
-현재 focus된 요소를 읽는다.
+Focus Trap은 modal이나 drawer처럼 열린 영역을 먼저 처리해야 하는 UI에 쓴다. 열린 동안 Tab focus가 영역 밖으로 빠지지 않게 하고, 닫힌 뒤에는 열기 전 위치로 되돌린다.
 
-```tsx
-const element: Element | null = document.activeElement;
-```
-
-- 값이 없거나 문서 body에 머무를 수 있다.
-- 실제로 `.focus()`를 다시 호출하려면 `HTMLElement`인지 좁힌다.
-
-```tsx
-const getActiveElement = () => {
-  const element = document.activeElement;
-
-  if (!(element instanceof HTMLElement) || element === document.body) {
-    return undefined;
-  }
-
-  return element;
-};
-```
-
-### `HTMLElement.focus()`
-
-요소로 focus를 옮긴다.
-
-```tsx
-type HTMLElementFocus = (options?: FocusOptions) => void;
-```
-
-- `options.preventScroll`: focus 이동 때문에 스크롤이 튀는 것을 막는다.
-- 대상이 `HTMLElement`가 아니거나 focus 불가 상태면 기대한 위치로 이동하지 않는다.
-
-```tsx
-const focusInitialElement = (element: HTMLElement) => {
-  element.focus({ preventScroll: true });
-};
-```
-
-### `querySelectorAll()` focusable selector
-
-selector는 후보만 찾는다. 실제 Tab 순서는 비활성, 숨김, `tabIndex`를 다시 걸러야 한다.
-
-```tsx
-const focusableSelector = [
-  "a[href]",
-  "button",
-  "input",
-  "select",
-  "textarea",
-  "[contenteditable]:not([contenteditable='false'])",
-  "[tabindex]",
-].join(",");
-
-const getTabbableElements = (container: HTMLElement) =>
-  [...container.querySelectorAll<HTMLElement>(focusableSelector)].filter(
-    (element) =>
-      !element.matches(":disabled") &&
-      !element.closest("[hidden], [inert], [aria-hidden='true']") &&
-      element.tabIndex >= 0,
-  );
-```
-
-### `KeyboardEvent` Tab/Escape
-
-Tab은 trap 안에서 순환시키고, Escape는 dialog 닫기 동작에 연결한다.
-
-```tsx
-const handleKeyDown = (event: KeyboardEvent) => {
-  if (event.key === "Escape") {
-    closeDialog();
-    return;
-  }
-
-  if (event.key !== "Tab") {
-    return;
-  }
-
-  if (event.shiftKey) {
-    focusPreviousElement();
-    return;
-  }
-
-  focusNextElement();
-};
-```
-
-- `event.key`: `"Tab"`과 `"Escape"`를 구분한다.
-- `event.shiftKey`: Shift+Tab 역방향 이동을 구분한다.
-- `event.preventDefault()`: 브라우저 기본 Tab 이동을 막고 직접 focus를 옮길 때 쓴다.
-
-### `useRef()`와 `useEffect()` cleanup
-
-열리기 전 focus를 ref에 저장하고, effect cleanup에서 listener와 focus를 함께 정리한다.
-
-```tsx
-const previousFocusRef = useRef<HTMLElement | undefined>(undefined);
-
-useEffect(() => {
-  if (!isOpen) {
-    return;
-  }
-
-  previousFocusRef.current = getActiveElement();
-  document.addEventListener("keydown", handleKeyDown);
-
-  return () => {
-    document.removeEventListener("keydown", handleKeyDown);
-    previousFocusRef.current?.focus();
-  };
-}, [isOpen]);
-```
-
-### `role="dialog"`와 `aria-modal`
-
-Focus Trap은 focus 이동을 맡고, dialog 의미는 ARIA로 묶는다.
-
-```tsx
-<section
-  aria-labelledby="delivery-title"
-  aria-modal="true"
-  role="dialog"
-  tabIndex={-1}
->
-  <h2 id="delivery-title">배송지 선택</h2>
-</section>
-```
-
-- `role="dialog"`: 열린 영역이 dialog임을 보조 기술에 알린다.
-- `aria-modal="true"`: dialog 바깥 콘텐츠가 현재 작업 흐름 밖임을 알린다.
-- `tabIndex={-1}`: 내부에 focus할 요소가 없을 때 container를 fallback으로 쓴다.
-
-## 언제 쓰나
-
-Focus Trap은 modal처럼 열린 영역을 먼저 처리해야 할 때 쓴다. Tab focus를 영역 안에서만 순환시킨다.
-
-열릴 때는 닫기 버튼이나 첫 입력값으로 focus를 옮기고, 닫힐 때는 이전 focus로 되돌린다.
-
-:::warning
-Focus Trap은 focus 이동만 다룬다. 배경 `inert`, scroll lock, Escape 닫기, portal은 dialog 쪽 책임이다.
-:::
+Focus Trap은 focus 이동만 맡는다. 배경 클릭 차단, scroll lock, portal, 닫힘 상태 관리는 dialog 쪽에서 따로 처리한다.
 
 ## 바로 쓰는 코드
 
-```tsx title="useFocusTrap.tsx"
-const focusableSelector = [
-  "a[href]",
-  "button",
-  "input",
-  "[contenteditable]:not([contenteditable='false'])",
-  "[tabindex]",
-  // ...
-].join(",");
-
-const isVisible = (element) => {
-  const style = window.getComputedStyle(element);
-
-  return (
-    style.display !== "none" &&
-    style.visibility !== "hidden" &&
-    element.getClientRects().length > 0
-  );
-};
-
-const isFocusable = (element) =>
-  // Selector only finds candidates. Filter the real Tab order again.
-  element.matches(focusableSelector) &&
-  !element.closest("[hidden], [inert], [aria-hidden='true']") &&
-  !element.matches(":disabled") &&
-  isVisible(element);
-
-const getTabbableElements = (container) =>
-  [...container.querySelectorAll<HTMLElement>(focusableSelector)].filter(
-    (element) => isFocusable(element) && element.tabIndex >= 0,
-  );
-
+```tsx title="activateFocusTrap.ts"
+const focusableSelector = ["a[href]", "button", "input", "select", "textarea", "[tabindex]"].join(",");
 const getActiveElement = () => {
   const element = document.activeElement;
-
-  if (!(element instanceof HTMLElement) || element === document.body) {
-    return undefined;
-  }
-
-  return element;
+  return element instanceof HTMLElement && element !== document.body ? element : undefined;
 };
 
-const useFocusTrap = ({
-  isActive,
-  containerRef,
-  initialFocusRef,
-}) => {
-  const previousFocusRef = useRef(undefined);
-
-  useEffect(() => {
-    if (!isActive) {
-      return;
-    }
-
-    const container = containerRef.current;
-
-    if (!container) {
-      return;
-    }
-
-    previousFocusRef.current = getActiveElement(); // [!code highlight]
-
-    const tabbableElements = getTabbableElements(container);
-    const initialFocusElement =
-      initialFocusRef?.current && isFocusable(initialFocusRef.current)
-        ? initialFocusRef.current
-        : tabbableElements[0] ?? container;
-
-    initialFocusElement.focus(); // [!code highlight]
-
-    const handleKeyDown = (event) => {
-      if (event.key !== "Tab") {
-        return;
-      }
-
-      const currentTabbableElements = getTabbableElements(container); // [!code highlight]
-
-      if (currentTabbableElements.length === 0) {
-        event.preventDefault();
-        container.focus(); // Requires tabIndex={-1} on the container.
-        return;
-      }
-
-      const firstElement = currentTabbableElements[0];
-      const lastElement =
-        currentTabbableElements[currentTabbableElements.length - 1];
-      const activeElement = getActiveElement();
-      const isFocusOutside =
-        !activeElement || !container.contains(activeElement);
-
-      if (event.shiftKey) {
-        if (activeElement === firstElement || isFocusOutside) {
-          event.preventDefault();
-          lastElement.focus(); // [!code highlight]
-        }
-
-        return;
-      }
-
-      if (activeElement === lastElement || isFocusOutside) {
-        event.preventDefault();
-        firstElement.focus(); // [!code highlight]
-      }
-    };
-
-    document.addEventListener("keydown", handleKeyDown);
-
-    return () => {
-      document.removeEventListener("keydown", handleKeyDown);
-
-      if (previousFocusRef.current?.isConnected) {
-        // The opener may have unmounted while the trap was active.
-        previousFocusRef.current.focus(); // [!code highlight]
-      }
-    };
-  }, [containerRef, initialFocusRef, isActive]);
-};
-```
-
-```tsx title="FocusTrapDialog.tsx"
-const FocusTrapExample = () => {
-  const [isOpen, setIsOpen] = useState(false);
-  const dialogRef = useRef(null);
-  const closeButtonRef = useRef(null);
-
-  useFocusTrap({
-    isActive: isOpen,
-    containerRef, // [!code highlight]
-    initialFocusRef: closeButtonRef,
-  });
-
-  return (
-    <>
-      <button type="button" onClick={() => setIsOpen(true)}>
-        배송지 선택
-      </button>
-
-      {isOpen ? (
-        <div className="backdrop">
-          <section
-            ref={dialogRef}
-            aria-labelledby="delivery-title"
-            aria-modal="true"
-            className="dialog"
-            role="dialog"
-            tabIndex={-1} // [!code highlight]
-          >
-            <h2 id="delivery-title">배송지 선택</h2>
-
-            {/* ... */}
-
-            <button
-              ref={closeButtonRef}
-              type="button"
-              onClick={() => setIsOpen(false)}
-            >
-              닫기
-            </button>
-          </section>
-        </div>
-      ) : undefined}
-    </>
+const getTabbableElements = (container: HTMLElement) =>
+  [...container.querySelectorAll<HTMLElement>(focusableSelector)].filter(
+    (element) => !element.matches(":disabled") && !element.closest("[hidden], [inert], [aria-hidden='true']") && element.tabIndex >= 0,
   );
+
+const activateFocusTrap = (container: HTMLElement, onEscape: () => void) => {
+  const previousFocus = getActiveElement();
+  (getTabbableElements(container)[0] ?? container).focus({ preventScroll: true });
+  const handleKeyDown = (event: KeyboardEvent) => {
+    if (event.key === "Escape") return onEscape();
+    if (event.key !== "Tab") return;
+
+    const elements = getTabbableElements(container);
+    const first = elements[0] ?? container;
+    const last = elements[elements.length - 1] ?? container;
+    const active = getActiveElement();
+    const shouldWrap = !active || !container.contains(active) || (event.shiftKey ? active === first : active === last);
+
+    if (!shouldWrap) return;
+    event.preventDefault();
+    (event.shiftKey ? last : first).focus({ preventScroll: true });
+  };
+
+  document.addEventListener("keydown", handleKeyDown);
+  return () => {
+    document.removeEventListener("keydown", handleKeyDown);
+    if (previousFocus?.isConnected) previousFocus.focus({ preventScroll: true });
+  };
 };
 ```
 
 ## 실수 포인트
 
-- tabbable element는 Tab을 누를 때마다 다시 계산한다.
-- focus가 trap 밖에 있어도 첫 요소와 마지막 요소 경계에서 다시 안으로 돌린다.
-- focus할 내부 요소가 없으면 container가 fallback이 된다.
-
-## 참고
-
-- [MDN HTMLElement focus](https://developer.mozilla.org/en-US/docs/Web/API/HTMLElement/focus)
+- focusable selector 결과를 그대로 믿으면 disabled나 숨김 요소로 focus가 이동할 수 있다.
+- Tab을 누를 때마다 focusable 목록을 다시 계산하지 않으면 동적으로 바뀐 버튼이나 입력값을 놓친다.
+- focus가 trap 밖에서 시작한 경우도 첫 요소나 마지막 요소로 다시 끌어와야 한다.
+- 닫힐 때 listener를 제거하지 않으면 닫힌 UI의 focus 로직이 계속 실행된다.
+- 열기 전 요소가 unmount될 수 있으면 focus 복귀 전에 연결 여부를 확인한다.

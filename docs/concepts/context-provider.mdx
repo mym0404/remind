@@ -2,218 +2,51 @@
 
 ## API reference
 
-### `createContext`
+- `createContext(defaultValue)`: Context 객체를 만든다. Provider가 없을 때만 `defaultValue`가 읽힌다.
+- `<Context.Provider value={value}>`: 하위 tree에 값을 공급한다. 하위 컴포넌트는 가장 가까운 Provider의 `value`를 읽는다.
+- `useContext(Context)`: 현재 컴포넌트에서 Context 값을 읽는다. Provider가 없으면 `createContext`의 기본값을 반환한다.
+- guard hook: 기본값을 `undefined`로 두고, custom hook에서 Provider 누락을 바로 에러로 만든다.
+- `useMemo`: Provider의 `value`가 객체일 때 참조를 안정화한다. 의존성이 같으면 이전 객체를 재사용한다.
 
-Context 객체를 만든다.
+## 쓰는 곳
 
-```ts
-declare function createContext<T>(defaultValue: T): Context<T>;
-```
-
-- 인자: `defaultValue`는 위쪽에 Provider가 없을 때만 쓰는 fallback 값이다.
-- 반환값: `Context<T>` 객체다. 이 객체의 Provider에 값을 넣고, `useContext`로 읽는다.
-
-```tsx
-type AuthContextValue = {
-  userName: string;
-  logout: () => void;
-};
-
-const AuthContext = createContext<AuthContextValue | undefined>(undefined);
-```
-
-기본값은 Provider 값을 대신 초기화하는 값이 아니다. Provider가 없을 때만 읽힌다. 그래서 앱 상태 Context는 `undefined`를 기본값으로 두고 guard를 두는 쪽이 실수를 빨리 잡기 쉽다.
-
-### `Context.Provider`와 `value`
-
-Provider는 하위 컴포넌트에 Context 값을 공급한다.
-
-```tsx
-type ProviderProps = {
-  children: React.ReactNode;
-};
-
-const AuthProvider = ({ children }: ProviderProps) => {
-  const value = { userName: "mj", logout: () => {} };
-
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-};
-```
-
-- 인자: `value`에는 하위에서 읽을 값을 넣는다.
-- 반환값: Provider 자체는 React element를 반환한다. 하위 컴포넌트는 가장 가까운 Provider의 `value`를 읽는다.
-
-### `useContext`
-
-현재 컴포넌트 위쪽에서 가장 가까운 Provider 값을 읽는다.
-
-```ts
-declare function useContext<T>(context: Context<T>): T;
-```
-
-- 인자: `context`에는 `createContext`가 반환한 Context 객체를 넣는다.
-- 반환값: 가장 가까운 Provider의 `value`다. Provider가 없으면 `createContext`의 `defaultValue`를 반환한다.
-
-```tsx
-const Header = () => {
-  const auth = useContext(AuthContext);
-
-  return <span>{auth?.userName ?? "guest"}</span>;
-};
-```
-
-### Provider guard pattern
-
-필수 Provider가 빠졌을 때는 custom hook에서 바로 실패시키는 편이 낫다.
-
-```tsx
-const useAuth = () => {
-  const auth = useContext(AuthContext);
-
-  if (auth === undefined) {
-    throw new Error("useAuth must be used within AuthProvider");
-  }
-
-  return auth;
-};
-```
-
-- 인자: custom hook은 보통 인자를 받지 않고 내부에서 Context를 읽는다.
-- 반환값: `undefined`가 제거된 Context 값이다.
-
-```tsx
-const LogoutButton = () => {
-  const { logout } = useAuth();
-
-  return (
-    <button type="button" onClick={logout}>
-      로그아웃
-    </button>
-  );
-};
-```
-
-### Memoized value
-
-Provider의 `value`가 객체나 함수 묶음이면 `useMemo`로 참조를 고정한다. 그래야 값이 그대로일 때 구독 컴포넌트의 불필요한 렌더링을 줄일 수 있다.
-
-```tsx
-const AuthProvider = ({ children }: ProviderProps) => {
-  const [userName, setUserName] = useState("mj");
-  const logout = useCallback(() => setUserName("guest"), []);
-
-  const value = useMemo(
-    () => ({ userName, logout }),
-    [userName, logout],
-  );
-
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-};
-```
-
-- 인자: `useMemo` 첫 번째 인자는 value 생성 함수, 두 번째 인자는 value가 바뀌어야 하는 의존성 배열이다.
-- 반환값: 의존성이 같으면 이전 객체 참조를 재사용한 값이다.
-
-## 언제 쓰나
-
-Context는 멀리 떨어진 컴포넌트가 같은 상태나 action을 공유할 때만 쓴다. 한두 단계 props면 props가 더 단순하다.
-
-Toast, Modal, 로그인 사용자, 테마처럼 앱 단위 API가 필요할 때 Provider에 state와 action을 둔다.
+- Theme, auth user, locale처럼 여러 깊이의 컴포넌트가 같은 앱 상태를 읽을 때 쓴다.
+- Toast, modal처럼 화면 어디서든 같은 action을 호출해야 할 때 쓴다.
+- 한두 단계 전달이면 Context보다 props가 더 단순하다.
 
 ## 바로 쓰는 코드
 
-```tsx title="ModalProvider.tsx"
-const ModalContext = createContext(undefined);
+```tsx title="ThemeProvider.tsx"
+type Theme = "light" | "dark";
 
-const ModalProvider = ({ children }) => {
-  const [modal, setModal] = useState();
-
-  const openConfirm = useCallback((title, message) => {
-    setModal({ type: "confirm", title, message });
-  }, []);
-
-  const closeModal = useCallback(() => setModal(undefined), []);
-
-  // Keep value stable for consumers that only need actions.
-  const value = useMemo(
-    () => ({ modal, openConfirm, closeModal }),
-    [modal, openConfirm, closeModal], // [!code highlight]
-  );
-
-  return (
-    <ModalContext.Provider value={value}>
-      {children}
-      {modal && <ConfirmDialog modal={modal} onClose={closeModal} />}
-    </ModalContext.Provider>
-  );
+type ThemeContextValue = {
+  theme: Theme;
+  setTheme: (theme: Theme) => void;
 };
 
-const useModal = () => {
-  const context = useContext(ModalContext);
+const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
+
+const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
+  const [theme, setTheme] = useState<Theme>("light");
+  const value = useMemo(() => ({ theme, setTheme }), [theme]);
+
+  return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
+};
+
+const useTheme = () => {
+  const context = useContext(ThemeContext);
 
   if (context === undefined) {
-    // Fail fast when the Provider is missing.
-    throw new Error("useModal must be used within ModalProvider"); // [!code highlight]
+    throw new Error("useTheme must be used within ThemeProvider");
   }
 
   return context;
 };
-
-// ...
-
-const ConfirmDialog = ({
-  modal,
-  onClose,
-}) => (
-  <div role="dialog" aria-modal="true" aria-labelledby="confirm-title">
-    <h2 id="confirm-title">{modal.title}</h2>
-    {/* ... */}
-    <button type="button" onClick={onClose}>닫기</button>
-  </div>
-);
 ```
-
-```tsx title="DeleteButton.tsx"
-const DeleteButton = () => {
-  const { openConfirm } = useModal();
-
-  return (
-    <button
-      type="button"
-      onClick={() =>
-        openConfirm("삭제 확인", "선택한 항목을 삭제하시겠습니까?")
-      }
-    >
-      삭제
-    </button>
-  );
-};
-```
-
-```tsx title="App.tsx"
-const App = () => {
-  return (
-    <ModalProvider>
-      <DeleteButton />
-    </ModalProvider>
-  );
-};
-```
-
-`ToastProvider`도 toast 배열과 `showToast`, `dismissToast` action만 바꾸면 같은 구조다.
-
-:::warning
-자주 바뀌는 state와 action을 한 Context에 넣으면 action만 쓰는 컴포넌트도 다시 렌더링될 수 있다. 필요하면 state Context와 action Context를 나눈다.
-:::
 
 ## 실수 포인트
 
-- Context 기본값에 빈 함수나 더미 객체를 넣으면 Provider 누락이 묻힌다.
-- `value={{ modal, openConfirm, closeModal }}`처럼 새 객체를 바로 넘기면 구독 컴포넌트가 다시 렌더링될 수 있다.
-- 읽기 빈도가 다른 값을 한 Context에 몰아넣으면 작은 상태 변경도 넓게 퍼진다.
-- Toast나 Modal도 필요한 route나 layout 범위까지만 Provider로 감싼다.
-- local state로 충분한 값을 Context로 올리면 상태 소유권과 변경 범위가 흐려진다.
-
-## 참고
-
-- [React createContext](https://react.dev/reference/react/createContext)
+- Context 기본값에 더미 객체를 넣으면 Provider 누락이 숨는다.
+- `value={{ theme, setTheme }}`처럼 새 객체를 바로 넘기면 구독 컴포넌트가 불필요하게 다시 렌더링될 수 있다.
+- 자주 바뀌는 큰 객체를 Context에 통째로 넣으면 작은 변경도 넓게 퍼진다.
+- Provider를 앱 전체에 무조건 두면 렌더링과 상태 소유 범위가 커진다.

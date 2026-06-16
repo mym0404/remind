@@ -6,13 +6,13 @@
 
 ## 핵심 개념
 
-- 초기 요청 시 loading을 보여준다.
-- 빈 배열은 empty state로 처리한다.
-- 실패는 error message로 보여준다.
+- 상태는 `loading | success | empty | error`로 나눈다.
+- 빈 배열은 success 목록이 아니라 empty state다.
+- 실패는 loading을 끝내고 error UI로 보인다.
 
 ## 풀이 흐름
 
-요청 상태를 문자열 하나로 뭉개지 말고 loading, success, empty, error로 나눈다. 응답 배열이 비어 있으면 성공 목록이 아니라 빈 상태를 렌더링한다. 실패한 요청은 사용자에게 보이는 error message로 바꾼다.
+`useEffect`에서 loading으로 시작하고 loader 결과를 상태 union으로 바꾼다. cleanup flag로 unmount 뒤 `setState`를 막는다.
 
 ## 핵심 코드
 

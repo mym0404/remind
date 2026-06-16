@@ -6,13 +6,13 @@
 
 ## 핵심 개념
 
-- CSS Grid를 쓴다.
-- auto-fit 또는 auto-fill과 minmax를 쓴다.
-- 카드 최소 너비를 고정하고 남는 공간을 분배한다.
+- layout은 CSS Grid가 맡는다.
+- `auto-fit` 또는 `auto-fill`과 `minmax`로 열 수를 맡긴다.
+- 고정 3열은 responsive contract가 아니다.
 
 ## 풀이 흐름
 
-container에 grid를 적용하고 column 정의를 `repeat(auto-fit, minmax(min(100%, 220px), 1fr))`처럼 둔다. 이렇게 하면 좁은 화면에서는 한 열, 넓은 화면에서는 가능한 만큼 열이 늘어난다.
+카드 wrapper에 `.card-grid`를 둔다. CSS에서 `grid-template-columns`만 responsive 규칙으로 만든다.
 
 ## 핵심 코드
 

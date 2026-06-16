@@ -2,135 +2,54 @@
 
 ## API reference
 
-### `useRef(initialValue)`
+- `useRef(initialValue)`: render 사이에 같은 ref 객체를 유지한다. `current`를 바꿔도 rerender가 생기지 않는다.
+- DOM ref: JSX `ref`에 연결하면 mount 뒤 `current`가 DOM node를 가리킨다. event handler나 effect에서 읽는다.
+- mutable ref: timer id, observer, 이전 값처럼 화면에 직접 그리지 않는 값을 담는다.
+- `useImperativeHandle(ref, createHandle, deps)`: parent가 받는 `ref.current`를 직접 정한다. DOM node 전체 대신 필요한 method만 노출한다.
 
-`useRef`는 렌더링 사이에 같은 객체를 유지한다. `ref.current`를 바꿔도 다시 렌더링되지 않으므로 DOM node, timer id, 외부 instance처럼 화면 상태가 아닌 값을 담기에 맞다.
+## 쓰는 곳
 
-```tsx title="declarations.tsx"
-const inputRef = useRef<HTMLInputElement>(null);
-const timerIdRef = useRef<number | undefined>(undefined);
-```
-
-DOM ref는 JSX의 `ref`에 넘기고, 값 ref는 event handler나 effect 안에서 직접 읽고 쓴다.
-
-```tsx title="FocusButton.tsx"
-const FocusButton = () => {
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  return (
-    <>
-      <input ref={inputRef} />
-      <button type="button" onClick={() => inputRef.current?.focus()}>
-        Focus
-      </button>
-    </>
-  );
-};
-```
-
-### `useImperativeHandle(ref, createHandle, deps)`
-
-`useImperativeHandle`은 부모에게 노출할 `ref.current` 값을 직접 정한다. DOM node 전체를 넘기지 말고, 부모가 호출해야 하는 method만 handle에 담는다.
-
-```tsx title="declarations.tsx"
-type SearchInputHandle = {
-  focus: () => void;
-  scrollIntoView: () => void;
-  clear: () => void;
-};
-
-type SearchInputProps = {
-  ref?: React.Ref<SearchInputHandle>;
-  value: string;
-  onChange: (value: string) => void;
-};
-```
-
-`deps`는 `createHandle` 안에서 읽는 props, state, function을 적는 배열이다. 생략하면 매 렌더링마다 handle을 다시 만들고, `[]`를 넘기면 처음 만든 method가 같은 값을 계속 닫아 둔다. `onChange`처럼 props에서 온 함수를 method가 읽으면 dependency에 넣어야 오래된 값을 호출하지 않는다.
-
-## 언제 쓰나
-
-`ref`는 DOM node나 렌더링과 무관한 값을 잡아둘 때 쓴다. focus, scroll, timer id, 외부 instance처럼 값 변경이 화면 갱신으로 이어지지 않는 경우다.
-
-부모가 자식 조작 API를 필요로 하면 DOM node 전체 대신 `useImperativeHandle`로 필요한 method만 공개한다. React 19에서는 컴포넌트가 `ref`를 prop으로 받을 수 있다.
+- input focus, scroll 이동처럼 DOM method를 event에서 호출할 때 쓴다.
+- timer id, observer instance, 이전 요청 id처럼 render와 무관한 값을 보관할 때 쓴다.
+- parent가 child 내부 DOM을 몰라도 되는 작은 imperative API가 필요할 때 쓴다.
 
 ## 바로 쓰는 코드
 
 ```tsx title="SearchInput.tsx"
-const SearchInput = ({ ref, value, onChange }: SearchInputProps) => {
-  const inputRef = useRef<HTMLInputElement>(null); // [!code highlight]
-
-  useImperativeHandle(
-    ref,
-    () => ({
-      clear: () => {
-        // Keep controlled value and DOM focus in sync.
-        onChange(""); // [!code highlight]
-        inputRef.current?.focus();
-      },
-      focus: () => {
-        inputRef.current?.focus();
-      },
-      scrollIntoView: () => {
-        inputRef.current?.scrollIntoView({ block: "center" });
-      },
-    }),
-    // Avoid stale props inside the handle.
-    [onChange], // [!code highlight]
-  );
-
-  return <input ref={inputRef} value={value} onChange={({ target }) => onChange(target.value)} />;
+type SearchInputHandle = {
+  focus: () => void;
+  clear: () => void;
 };
-```
 
-```tsx title="SearchPanel.tsx"
-// ...
-
-const SearchPanel = () => {
-  const [query, setQuery] = useState("");
-  const searchInputRef = useRef<SearchInputHandle>(null);
-  const lastSubmittedQueryRef = useRef(""); // Mutable, not rendered.
-
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-
-    const nextQuery = query.trim();
-
-    if (!nextQuery) {
-      searchInputRef.current?.focus(); // [!code highlight]
-      return;
-    }
-
-    if (lastSubmittedQueryRef.current === nextQuery) {
-      searchInputRef.current?.scrollIntoView();
-      return;
-    }
-
-    lastSubmittedQueryRef.current = nextQuery;
-    // Submit query...
-  };
-
-  return (
-    <form onSubmit={handleSubmit}>
-      <SearchInput ref={searchInputRef} value={query} onChange={setQuery} />
-
-      {/* ... */}
-    </form>
-  );
+type SearchInputProps = {
+  value: string;
+  onChange: (value: string) => void;
 };
+
+const SearchInput = forwardRef<SearchInputHandle, SearchInputProps>(
+  ({ value, onChange }, ref) => {
+    const inputRef = useRef<HTMLInputElement>(null); // [!code highlight]
+
+    useImperativeHandle(
+      ref,
+      () => ({
+        focus: () => inputRef.current?.focus(),
+        clear: () => {
+          onChange("");
+          inputRef.current?.focus();
+        },
+      }),
+      [onChange], // [!code highlight]
+    );
+
+    return <input ref={inputRef} value={value} onChange={({ target }) => onChange(target.value)} />;
+  },
+);
 ```
 
 ## 실수 포인트
 
-:::warning
-`useImperativeHandle`에 내부 DOM 구조가 새어 나오면 component boundary가 약해진다.
-:::
-
-- `ref.current`를 렌더링 분기 조건으로 쓰지 않는다.
-- 공개 handle에는 부모가 호출할 method만 담는다.
-- 내부 값을 바꾸는 method는 controlled value도 함께 갱신한다.
-- handle callback이 props를 읽으면 dependency를 비우지 않는다.
-
-## 참고
-
-- [React useImperativeHandle](https://react.dev/reference/react/useImperativeHandle)
+- `ref.current`를 render 결과를 정하는 값으로 쓰지 않는다.
+- render 중 DOM ref를 읽지 않는다.
+- parent에게 DOM node 전체를 넘기는 것을 기본값으로 삼지 않는다.
+- `useImperativeHandle` callback이 props나 state를 읽으면 `deps`에 넣는다.

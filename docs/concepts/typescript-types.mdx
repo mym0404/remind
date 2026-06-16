@@ -2,39 +2,19 @@
 
 ## API reference
 
-타입은 값의 모양을 이름 붙이고, 필요한 위치에서 좁혀 쓰려고 만든다.
+- type alias: 객체, 함수, primitive 조합에 이름을 붙인다.
+- union: 값이 여러 후보 중 하나일 때 가능한 값을 제한한다.
+- discriminated union: `status`, `type`, `kind` 같은 tag로 분기마다 필요한 값을 좁힌다.
+- generic: 호출자가 넘긴 타입을 반환값, props, callback까지 잃지 않고 이어준다.
+- React props type: component가 받는 데이터와 event callback 경계를 component 가까이에 둔다.
 
-### Type alias
+## 쓰는 곳
 
-`type`은 객체, 함수, primitive 조합에 이름을 붙인다.
+- API 응답, 비동기 상태, component props, 재사용 hook처럼 데이터 경계가 흐려지기 쉬운 곳에 쓴다.
+- 상태마다 필요한 값이 다르면 optional field 여러 개보다 discriminated union을 쓴다.
+- 화면마다 필요한 필드가 다르면 API 타입 전체를 넘기지 말고 props 타입을 따로 둔다.
 
-```ts title="type-alias.ts"
-type UserId = string;
-
-type User = {
-  id: UserId;
-  name: string;
-  role: "admin" | "member";
-};
-
-type SelectUser = (id: UserId) => void;
-```
-
-### Union
-
-`|`는 값이 여러 후보 중 하나일 때 쓴다.
-
-```ts title="union.ts"
-type Role = "admin" | "member";
-type SortDirection = "asc" | "desc";
-type InputValue = string | number | undefined;
-
-const canEdit = (role: Role) => role === "admin";
-```
-
-### Discriminated union
-
-공통 판별 필드를 두면 분기 안에서 타입이 좁혀진다. 보통 `status`, `type`, `kind` 같은 이름을 쓴다.
+## 바로 쓰는 코드
 
 ```ts title="async-state.ts"
 type AsyncState<T> =
@@ -43,42 +23,14 @@ type AsyncState<T> =
   | { status: "success"; data: T }
   | { status: "error"; message: string };
 
-const getStatusLabel = (state: AsyncState<User>) => {
-  if (state.status === "success") {
-    return state.data.name;
-  }
-
-  if (state.status === "error") {
-    return state.message;
-  }
-
+const getMessage = (state: AsyncState<{ name: string }>) => {
+  if (state.status === "success") return state.data.name;
+  if (state.status === "error") return state.message;
   return "대기 중";
 };
 ```
 
-### Generic function
-
-generic은 호출하는 쪽에서 값의 타입을 넣어 재사용한다.
-
-```ts title="generic-function.ts"
-type ApiResponse<T> = {
-  data: T;
-};
-
-const unwrapData = <T,>(response: ApiResponse<T>) => {
-  return response.data;
-};
-
-const user = unwrapData<User>({
-  data: { id: "1", name: "Dana", role: "member" },
-});
-```
-
-### Generic component props
-
-컴포넌트 props도 generic으로 받을 수 있다. 리스트처럼 항목 모양만 바뀌고 렌더링 흐름은 같은 경우에 맞다.
-
-```tsx title="generic-props.tsx"
+```tsx title="List.tsx"
 type ListProps<T> = {
   items: T[];
   renderItem: (item: T) => ReactNode;
@@ -88,187 +40,20 @@ const List = <T,>({ items, renderItem }: ListProps<T>) => {
   return <ul>{items.map((item) => renderItem(item))}</ul>;
 };
 
-const UserList = ({ users }: { users: User[] }) => {
-  return <List items={users} renderItem={(user) => <li key={user.id}>{user.name}</li>} />;
-};
-```
-
-### React helper types
-
-`ComponentProps`는 기존 요소나 컴포넌트의 props를 가져올 때 쓴다. `useState<T>`는 초기값만으로 상태 타입을 충분히 추론하지 못할 때 붙인다.
-
-```tsx title="react-helper-types.tsx"
-type ButtonProps = ComponentProps<"button">;
-
-const SaveButton = (props: ButtonProps) => {
-  return <button type="button" {...props} />;
-};
-
-const UserPanel = () => {
-  const [state, setState] = useState<AsyncState<User>>({ status: "idle" });
-
+const UserList = ({ users }: { users: { id: string; name: string }[] }) => {
   return (
-    <SaveButton onClick={() => setState({ status: "loading" })}>
-      {state.status}
-    </SaveButton>
+    <List
+      items={users}
+      renderItem={(user) => <li key={user.id}>{user.name}</li>}
+    />
   );
 };
 ```
-
-## 언제 쓰나
-
-API 응답, 리스트 항목, props, 이벤트 핸들러처럼 데이터 경계가 흐려지기 쉬운 곳에 쓴다.
-
-필드가 없을 수 있으면 `?`, 값이 비어 있음을 표현하면 `null`을 쓴다.
-
-상태마다 필요한 값이 다르면 discriminated union으로 렌더링 분기를 좁힌다.
-
-## 바로 쓰는 코드
-
-```ts title="user-types.ts"
-export type ApiResponse<T> = {
-  data: T;
-  meta: {
-    page: number;
-    total: number;
-  };
-};
-
-export type User = {
-  id: string;
-  name: string;
-  avatarUrl?: string;
-  deletedAt: string | null;
-  role: "admin" | "member";
-};
-
-// Keep list props detached from the full API shape.
-export type UserListItem = Pick<User, "id" | "name" | "role">; // [!code highlight]
-
-export type UserCreateInput = Omit<User, "id" | "deletedAt">;
-export type UserPatchInput = Partial<Pick<User, "name" | "avatarUrl" | "role">>;
-
-export type AsyncState<T> =
-  | { status: "idle" }
-  | { status: "loading" }
-  | { status: "success"; data: T } // [!code highlight]
-  | { status: "error"; message: string };
-```
-
-```tsx title="UserCard.tsx"
-type UserCardProps = {
-  user: UserListItem;
-  selected?: boolean;
-  onSelect: (id: string) => void;
-  children?: ReactNode;
-};
-
-// Fails when a new role has no label.
-const roleLabel: Record<User["role"], string> = {
-  admin: "관리자",
-  member: "멤버",
-}; // [!code highlight]
-
-const useRemoteData = <T,>(load: () => Promise<ApiResponse<T>>) => {
-  const [state, setState] = useState<AsyncState<T>>({ status: "idle" });
-
-  useEffect(() => {
-    let ignored = false;
-
-    const run = async () => {
-      setState({ status: "loading" });
-
-      try {
-        const response = await load();
-
-        if (!ignored) {
-          setState({ status: "success", data: response.data }); // [!code highlight]
-        }
-      } catch (error) {
-        if (!ignored) {
-          const message =
-            error instanceof Error ? error.message : "데이터를 불러오지 못했어요.";
-          setState({ status: "error", message });
-        }
-      }
-    };
-
-    void run();
-
-    return () => {
-      // Ignore late responses after unmount or dependency change.
-      ignored = true;
-    };
-  }, [load]);
-
-  return state;
-};
-
-const UserCard = ({
-  user,
-  selected = false,
-  onSelect,
-  children,
-}: UserCardProps) => {
-  const handleClick = (event: MouseEvent<HTMLButtonElement>) => {
-    event.currentTarget.blur();
-    onSelect(user.id); // [!code highlight]
-  };
-
-  return (
-    <li aria-selected={selected}>
-      <button type="button" onClick={handleClick}>
-        {user.name} · {roleLabel[user.role]}
-      </button>
-      {children}
-    </li>
-  );
-};
-
-const UserSearch = () => {
-  const [keyword, setKeyword] = useState("");
-
-  const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
-    setKeyword(event.currentTarget.value); // [!code highlight]
-  };
-
-  return <input value={keyword} onChange={handleChange} />;
-};
-```
-
-```ts title="dom-elements.ts"
-const focusElement = (element: HTMLElement) => {
-  element.focus();
-};
-
-const readInputValue = (input: HTMLInputElement) => {
-  return input.value.trim();
-};
-
-const disableButton = (button: HTMLButtonElement) => {
-  button.disabled = true;
-};
-
-const measurePanel = (panel: HTMLDivElement) => {
-  return panel.getBoundingClientRect().height;
-};
-```
-
-`UserCardProps`처럼 props 타입은 컴포넌트 가까이에 둔다.
-
-`Pick`, `Omit`, `Partial`은 기존 타입에서 화면·입력·수정 타입을 만들 때 쓴다.
-
-hook이 데이터 모양을 몰라도 되면 `useRemoteData<T>`처럼 generic을 쓴다.
 
 ## 실수 포인트
 
-- optional과 nullable을 섞어 쓰면 서버 계약이 흐려진다.
-- `string | null | undefined`는 실제로 세 상태가 모두 필요한 필드에만 쓴다.
-- API 타입을 그대로 props까지 흘려보내면 화면에 불필요한 필드까지 결합된다.
-- 이벤트에서는 `event.target`보다 타입이 좁혀진 `event.currentTarget`을 먼저 본다.
-- DOM 타입은 필요한 속성 기준으로 좁힌다.
-- union type은 값을 쓰기 전에 `status`, `type`, `kind` 같은 필드로 좁힌다.
-
-## 참고
-
-- [TypeScript Everyday Types](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html)
+- `any`로 외부 입력과 component 경계를 지우지 않는다.
+- optional 속성 여러 개로 상태 조합을 만들면 impossible state가 생긴다.
+- generic은 호출자가 타입을 잃지 않아야 할 때만 쓴다.
+- 한 번만 쓰는 짧은 props 타입은 inline으로 둬도 된다.
+- 타입을 맞추려고 런타임 구조를 복잡하게 만들지 않는다.

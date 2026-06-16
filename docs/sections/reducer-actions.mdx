@@ -6,13 +6,13 @@
 
 ## 핵심 개념
 
-- add, toggle, remove action을 정의한다.
+- action 하나는 상태 변화 하나만 표현한다.
 - reducer는 기존 배열을 mutate하지 않는다.
-- 완료 항목은 화면에서 완료 상태로 보인다.
+- UI는 add, toggle, remove만 dispatch한다.
 
 ## 풀이 흐름
 
-action type을 먼저 정하고 reducer는 순수 함수로 둔다. add는 새 배열을 만들고, toggle은 해당 id만 새 객체로 바꾼다. remove는 filter로 제외한다.
+입력과 버튼 이벤트를 action으로 바꾼다. reducer는 새 배열을 반환하고 화면은 reducer state만 렌더링한다.
 
 ## 핵심 코드
 

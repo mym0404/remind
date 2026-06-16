@@ -2,323 +2,61 @@
 
 ## API reference
 
-로컬 optimistic update는 서버 함수의 입력, 임시 식별자, 되돌릴 기준을 먼저 정해두면 단순해진다. `useState`로 충분한 경우가 많고, 요청 상태가 여러 갈래로 늘어나면 `useReducer`로 액션을 모은다.
+- snapshot: 요청 전 값 중 실패하면 되돌릴 최소 단위다.
+- optimistic state: 서버 응답 전에 먼저 화면에 반영하는 임시 state다.
+- rollback: 요청 실패 시 snapshot으로 이번 요청의 변경만 되돌린다.
+- reconcile: 요청 성공 시 optimistic state를 서버 응답 값으로 확정한다.
+- temporary id: 서버 id가 오기 전까지 optimistic state를 찾는 임시 id다.
 
-```tsx title="optimistic-types.ts"
-type RequestId = string;
-type TempId = `temp:${string}`;
+## 쓰는 곳
 
-type Comment = {
-  id: string;
-  status?: "saving" | "failed";
-  text: string;
-};
+좋아요, 저장, 삭제, 댓글 작성처럼 성공 가능성이 높고 즉시 반응이 중요한 action에 쓴다.
 
-type CreateCommentInput = {
-  requestId: RequestId;
-  signal?: AbortSignal;
-  tempId: TempId;
-  text: string;
-};
-
-type RollbackSnapshot = {
-  requestId: RequestId;
-  tempId: TempId;
-};
-
-const createComment = async ({
-  requestId,
-  signal,
-  tempId,
-  text,
-}: CreateCommentInput) => {
-  const response = await fetch("/api/comments", {
-    body: JSON.stringify({ clientId: tempId, requestId, text }),
-    method: "POST",
-    signal,
-  });
-
-  if (!response.ok) {
-    throw new Error("댓글을 저장하지 못했습니다.");
-  }
-
-  return (await response.json()) as Comment;
-};
-```
-
-`requestId`는 이 요청의 성공·실패를 구분하는 값이고, `tempId`는 서버 `id`가 오기 전까지 화면에서 쓰는 항목 `id`다. 새 항목 추가처럼 되돌릴 값이 단순하면 snapshot에는 제거할 `tempId`만 남겨도 된다. 기존 항목 수정은 전체 목록 대신 수정 전 항목 하나를 snapshot으로 보관한다.
-
-```tsx title="CommentForm.tsx"
-const CommentForm = ({
-  initialComments,
-}: {
-  initialComments: Comment[];
-}) => {
-  const [comments, setComments] = useState(initialComments);
-
-  const submitComment = async (text: string) => {
-    const requestId = crypto.randomUUID();
-    const tempId: TempId = `temp:${requestId}`;
-    const rollback: RollbackSnapshot = { requestId, tempId };
-    const controller = new AbortController();
-
-    setComments((currentComments) => [
-      ...currentComments,
-      { id: tempId, status: "saving", text },
-    ]);
-
-    try {
-      const savedComment = await createComment({
-        requestId,
-        signal: controller.signal,
-        tempId,
-        text,
-      });
-
-      setComments((currentComments) =>
-        currentComments.map((comment) =>
-          comment.id === tempId ? savedComment : comment,
-        ),
-      );
-    } catch {
-      setComments((currentComments) =>
-        currentComments.filter((comment) => comment.id !== rollback.tempId),
-      );
-    }
-  };
-
-  return <section>{/* ... */}</section>;
-};
-```
-
-`AbortController`는 취소 버튼, 화면 이탈, 검색어 변경처럼 이전 요청을 실제로 중단해야 할 때만 붙인다. 단순 저장 버튼에는 중복 요청 차단만으로 충분한 경우가 많다.
-
-상태 전이가 많아지면 reducer에 optimistic 추가, 확정, rollback을 모은다.
-
-```tsx title="comments-reducer.tsx"
-type CommentsAction =
-  | { comment: Comment; type: "optimistic:add" }
-  | { savedComment: Comment; tempId: TempId; type: "commit:add" }
-  | { tempId: TempId; type: "rollback:add" };
-
-const commentsReducer = (comments: Comment[], action: CommentsAction) => {
-  switch (action.type) {
-    case "optimistic:add":
-      return [...comments, action.comment];
-    case "commit:add":
-      return comments.map((comment) =>
-        comment.id === action.tempId ? action.savedComment : comment,
-      );
-    case "rollback:add":
-      return comments.filter((comment) => comment.id !== action.tempId);
-  }
-};
-
-const CommentsWithReducer = ({
-  initialComments,
-}: {
-  initialComments: Comment[];
-}) => {
-  const [comments, dispatch] = useReducer(commentsReducer, initialComments);
-
-  return <section>{/* ... */}</section>;
-};
-```
-
-## 언제 쓰나
-
-좋아요, 저장, 삭제, 댓글 작성처럼 결과를 바로 기대하는 액션에 쓴다. 먼저 화면을 바꾸고, 성공하면 서버 응답으로 확정하고, 실패하면 되돌린다.
-
-React 19에서는 `useOptimistic`으로 pending 동안만 보이는 임시 상태를 만들 수 있다. 직접 구현할 때는 이전 값 보관과 같은 항목의 중복 요청 차단이 핵심이다.
+서버 응답이 정렬, 권한, id를 바꿀 수 있으면 성공 후 reconcile까지 처리한다.
 
 ## 바로 쓰는 코드
 
 ```tsx title="CommentForm.tsx"
-const createComment = async (text) => {
-  const response = await fetch("/api/comments", {
-    body: JSON.stringify({ text }),
-    method: "POST",
-    // ...
-  });
-
-  if (!response.ok) {
-    throw new Error("댓글을 저장하지 못했습니다.");
-  }
-
-  return (await response.json()) as Comment;
+type Comment = {
+  id: string;
+  status?: "saving";
+  text: string;
 };
 
-const CommentForm = ({
-  initialComments,
-}) => {
-  const formRef = useRef(null);
-  const isSubmittingRef = useRef(false);
+const CommentForm = ({ initialComments }: { initialComments: Comment[] }) => {
   const [comments, setComments] = useState(initialComments);
-  const [errorMessage, setErrorMessage] = useState();
-  const [optimisticComments, addOptimisticComment] = useOptimistic(
-    comments,
-    // Keep this function pure.
-    (currentComments, comment) => [...currentComments, comment], // [!code highlight]
-  );
 
-  const formAction = async (formData) => {
-    if (isSubmittingRef.current) {
-      return;
-    }
+  const submitComment = async (text: string) => {
+    const tempId = `temp:${crypto.randomUUID()}`;
+    const snapshot = { tempId };
 
-    const text = String(formData.get("comment") ?? "").trim();
-
-    if (!text) {
-      return;
-    }
-
-    isSubmittingRef.current = true;
-    setErrorMessage(undefined);
-    // Visible only while the action is pending.
-    addOptimisticComment({
-      id: crypto.randomUUID(),
-      status: "saving",
-      text,
-    }); // [!code highlight]
-    formRef.current?.reset();
+    setComments((current) => [
+      ...current,
+      { id: tempId, status: "saving", text },
+    ]); // [!code highlight]
 
     try {
-      const savedComment = await createComment(text);
-      // Commit the server shape, not the optimistic shape.
-      setComments((currentComments) => [...currentComments, savedComment]); // [!code highlight]
-    } catch (error) {
-      setErrorMessage(
-        error instanceof Error ? error.message : "댓글 저장 중 문제가 생겼습니다.",
-      );
-    } finally {
-      isSubmittingRef.current = false;
-    }
-  };
+      const savedComment = await createComment({ clientId: tempId, text });
 
-  return (
-    <section>
-      {/* ... */}
-
-      <form action={formAction} ref={formRef}>
-        {/* ... */}
-        <input name="comment" />
-        <button type="submit">등록</button>
-      </form>
-
-      {errorMessage && <p role="alert">{errorMessage}</p>}
-    </section>
-  );
-};
-```
-
-직접 구현할 때는 바뀐 항목만 되돌릴 수 있어야 한다.
-
-:::warning
-Rollback을 전체 목록 snapshot으로 처리하면 그 사이 성공한 다른 요청까지 덮어쓸 수 있다.
-:::
-
-```tsx title="TodoList.tsx"
-const updateTodoDone = async ({
-  done,
-  id,
-}) => {
-  const response = await fetch(`/api/todos/${id}`, {
-    body: JSON.stringify({ done }),
-    method: "PATCH",
-    // ...
-  });
-
-  if (!response.ok) {
-    throw new Error("할 일을 저장하지 못했습니다.");
-  }
-
-  return (await response.json()) as Todo;
-};
-
-const TodoList = ({
-  initialTodos,
-}) => {
-  const pendingIdsRef = useRef({});
-  const [todos, setTodos] = useState(initialTodos);
-  const [pendingIds, setPendingIds] = useState({});
-  const [errorMessage, setErrorMessage] = useState();
-
-  const setTodoPending = (id, isPending) => {
-    const nextPendingIds = { ...pendingIdsRef.current };
-
-    if (isPending) {
-      nextPendingIds[id] = true;
-    } else {
-      delete nextPendingIds[id];
-    }
-
-    pendingIdsRef.current = nextPendingIds;
-    setPendingIds(nextPendingIds);
-  };
-
-  const toggleTodo = async (todo) => {
-    if (pendingIdsRef.current[todo.id]) {
-      // Ignore duplicate writes for the same item.
-      return; // [!code highlight]
-    }
-
-    const previousTodo = todo;
-    const nextDone = !todo.done;
-
-    setTodoPending(todo.id, true);
-    setErrorMessage(undefined);
-    // Optimistically patch only the touched item.
-    setTodos((currentTodos) =>
-      currentTodos.map((item) =>
-        item.id === todo.id ? { ...item, done: nextDone } : item,
-      ),
-    ); // [!code highlight]
-
-    try {
-      const savedTodo = await updateTodoDone({
-        done: nextDone,
-        id: todo.id,
-      });
-
-      // Server response may include id, sorting, or permission changes.
-      setTodos((currentTodos) =>
-        currentTodos.map((item) =>
-          item.id === savedTodo.id ? savedTodo : item,
+      setComments((current) =>
+        current.map((comment) =>
+          comment.id === tempId ? savedComment : comment,
         ),
       ); // [!code highlight]
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "할 일 저장 중 문제가 생겼습니다.";
-
-      // Roll back the item touched by this request.
-      setTodos((currentTodos) =>
-        currentTodos.map((item) =>
-          item.id === previousTodo.id ? previousTodo : item,
-        ),
+    } catch {
+      setComments((current) =>
+        current.filter((comment) => comment.id !== snapshot.tempId),
       ); // [!code highlight]
-      setErrorMessage(message);
-    } finally {
-      setTodoPending(todo.id, false);
     }
   };
 
-  return (
-    <section>
-      {/* ... */}
-
-      {errorMessage && <p role="alert">{errorMessage}</p>}
-    </section>
-  );
+  return <CommentList comments={comments} onSubmit={submitComment} />;
 };
 ```
 
 ## 실수 포인트
 
-- optimistic 값만 남기고 서버 응답을 버리면 `id`, 정렬, 권한 결과가 어긋난다.
+- 전체 목록 snapshot으로 rollback하면 그 사이 성공한 다른 요청까지 덮어쓸 수 있다.
+- optimistic state만 남기고 서버 응답을 버리면 id, 정렬, 권한 결과가 어긋난다.
 - 같은 항목의 중복 요청을 허용하면 빠른 연속 클릭으로 상태가 꼬인다.
-- `useOptimistic` update 함수 안에서 `crypto.randomUUID()` 같은 부수 효과를 만들지 않는다.
-- rollback 기준은 전체 목록이 아니라 이번 요청이 건드린 항목이다.
-
-## 참고
-
-- [React useOptimistic](https://react.dev/reference/react/useOptimistic)
+- temporary id를 만들지 않으면 성공 응답을 어느 optimistic state와 맞출지 불명확해진다.

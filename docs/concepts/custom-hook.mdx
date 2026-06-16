@@ -2,159 +2,28 @@
 
 ## API reference
 
-Custom hook의 API는 호출부가 기억하기 쉬운 모양이어야 한다. 값이 하나면 그대로 받고, 값이 여럿이거나 boolean 인자가 섞이면 객체 인자로 묶는다.
+- 이름은 `use`로 시작한다.
+- hook은 component나 다른 hook의 최상위에서만 호출한다.
+- 인자는 hook이 제어할 외부 조건만 받는다.
+- 반환값은 호출부가 바로 쓰는 값, action, ref로 제한한다.
+- timer, listener, observer, request를 만들면 cleanup도 hook 안에 둔다.
 
-반환값은 이름이 중요한 상태라면 객체로, `useState`처럼 자리 자체가 의미를 가진다면 tuple로 둔다. hook이 함수를 반환할 때는 `useCallback`으로 참조를 고정해 호출부의 effect가 불필요하게 다시 돌지 않게 한다.
+## 쓰는 곳
 
-```ts title="hook-api.ts"
-type UseFetchParams = {
-  enabled?: boolean;
-  options?: RequestInit;
-  url: string;
-};
-
-type UseFetchResult<T> = {
-  data: T | undefined;
-  error: Error | undefined;
-  loading: boolean;
-  refetch: () => void;
-};
-
-declare const useFetch: <T>(params: UseFetchParams) => UseFetchResult<T>;
-
-declare const useDebounce: <T>(value: T, delayMs: number) => T;
-
-declare const useLocalStorage: <T>(
-  key: string,
-  initialValue: T,
-) => [value: T, setValue: Dispatch<SetStateAction<T>>];
-
-type UseClickOutsideParams = {
-  enabled?: boolean;
-  onClickOutside: (event: MouseEvent | TouchEvent) => void;
-  ref: RefObject<HTMLElement | null>;
-};
-
-declare const useClickOutside: (params: UseClickOutsideParams) => void;
-```
-
-generic type parameter는 hook 내부가 데이터 모양을 알 수 없을 때만 쓴다. `useFetch<User[]>`처럼 호출부가 결과 타입을 넘기면 hook은 요청 상태와 cleanup만 책임진다.
-
-```tsx title="api-usage.tsx"
-const UserPanel = () => {
-  const panelRef = useRef<HTMLDivElement>(null);
-  const [isOpen, setIsOpen] = useState(false);
-  const [query, setQuery] = useState("");
-  const closePanel = useCallback(() => setIsOpen(false), []);
-  const { data: users = [], loading, refetch } = useFetch<User[]>({
-    enabled: query.length > 0,
-    url: `/api/users?query=${encodeURIComponent(query)}`,
-  });
-
-  useClickOutside({
-    enabled: isOpen,
-    onClickOutside: closePanel,
-    ref: panelRef,
-  });
-
-  return (
-    <section ref={panelRef}>
-      <input onChange={(event) => setQuery(event.target.value)} value={query} />
-      {loading ? <p>불러오는 중입니다.</p> : <button onClick={refetch}>새로고침</button>}
-      {isOpen && <p>{users.length}명</p>}
-    </section>
-  );
-};
-```
-
-cleanup은 API 설명에 드러나야 한다. timer, event listener, network request를 잡는 hook은 unmount나 의존성 변경 때 무엇을 해제하는지 코드로 보여준다.
-
-## 언제 쓰나
-
-화면 코드보다 상태 로직이 길어질 때 custom hook으로 뺀다. 컴포넌트는 렌더링과 이벤트 연결만 남긴다.
-
-- `useFetch`는 요청 상태와 재요청 함수를 한곳에서 관리할 때 쓴다.
-- `useDebounce`는 검색어처럼 자주 바뀌는 값을 늦게 반영할 때 쓴다.
-- `useLocalStorage`는 state와 `localStorage` 값을 맞춰야 할 때 쓴다.
-- `useClickOutside`는 팝오버나 메뉴 바깥 클릭을 감지할 때 쓴다.
-- `usePrevious`는 직전 값을 비교해야 할 때 쓴다.
-
-좋은 hook은 특정 화면 이름, DOM 구조, CSS class를 모른다. 인자는 동작에 필요한 값만 받고, 반환값은 렌더링에 필요한 값과 함수만 담는다.
-
-:::warning
-hook API에 `options`, callback처럼 참조가 바뀌기 쉬운 값을 받으면 호출부까지 같이 설계한다. 값을 안정화하거나 primitive 인자로 좁혀 effect 재실행 조건을 예측 가능하게 둔다.
-:::
+- 여러 컴포넌트가 같은 state/effect 규칙을 공유할 때 쓴다.
+- 컴포넌트보다 timer, listener, request 정리 코드가 더 눈에 띌 때 쓴다.
+- 화면 이름, DOM 구조, CSS class를 모르는 behavior만 hook으로 뺀다.
 
 ## 바로 쓰는 코드
 
 ```tsx title="hooks.ts"
-const useFetch = <T,>({
-  enabled = true,
-  options,
-  url,
-}) => {
-  const [state, setState] = useState({
-    data: undefined,
-    error: undefined,
-    loading: false,
-  });
-  const [requestCount, setRequestCount] = useState(0);
-
-  const refetch = useCallback(() => setRequestCount((count) => count + 1), []);
-
-  useEffect(() => {
-    if (!enabled) {
-      setState((current) => ({ ...current, loading: false }));
-      return;
-    }
-
-    // Cancel stale requests.
-    const controller = new AbortController(); // [!code highlight]
-
-    const load = async () => {
-      setState((current) => ({ ...current, error: undefined, loading: true }));
-
-      try {
-        const response = await fetch(url, {
-          ...options,
-          signal: controller.signal,
-        }); // [!code highlight]
-
-        if (!response.ok) {
-          throw new Error(`Request failed: ${response.status}`);
-        }
-
-        const data = (await response.json()) as T;
-        setState({ data, error: undefined, loading: false });
-      } catch (error) {
-        if (error instanceof DOMException && error.name === "AbortError") {
-          return;
-        }
-
-        setState({
-          data: undefined,
-          error,
-          loading: false,
-        });
-      }
-    };
-
-    void load();
-
-    return () => {
-      controller.abort(); // [!code highlight]
-    };
-  // Keep object deps stable.
-  }, [enabled, options, requestCount, url]); // [!code highlight]
-
-  return { ...state, refetch };
-};
-
-const useDebounce = <T,>(value, delayMs) => {
+const useDebouncedValue = <T,>(value: T, delayMs: number) => {
   const [debouncedValue, setDebouncedValue] = useState(value);
 
   useEffect(() => {
-    const timerId = window.setTimeout(() => setDebouncedValue(value), delayMs);
+    const timerId = window.setTimeout(() => {
+      setDebouncedValue(value);
+    }, delayMs);
 
     return () => window.clearTimeout(timerId); // [!code highlight]
   }, [delayMs, value]);
@@ -162,127 +31,30 @@ const useDebounce = <T,>(value, delayMs) => {
   return debouncedValue;
 };
 
-const defaultDeserialize = <T,>(value) => JSON.parse(value);
-
-const useLocalStorage = <T,>(
-  key,
-  initialValue,
-) => {
-  const [value, setValue] = useState(() => {
-    if (typeof window === "undefined") {
-      return initialValue;
-    }
-
-    const storedValue = window.localStorage.getItem(key);
-    return storedValue === null ? initialValue : defaultDeserialize<T>(storedValue);
-  });
-
-  useEffect(() => {
-    if (typeof window === "undefined") {
-      return;
-    }
-
-    window.localStorage.setItem(key, JSON.stringify(value)); // [!code highlight]
-  }, [key, value]); // [!code highlight]
-
-  return [value, setValue];
-};
-
-const useClickOutside = ({
+const useDocumentListener = <K extends keyof DocumentEventMap>({
   enabled = true,
-  onClickOutside,
-  ref,
+  type,
+  onEvent,
+}: {
+  enabled?: boolean;
+  type: K;
+  onEvent: (event: DocumentEventMap[K]) => void;
 }) => {
   useEffect(() => {
-    if (!enabled) {
-      return;
-    }
+    if (!enabled) return;
 
-    const handleDocumentEvent = (event) => {
-      const target = event.target;
-
-      if (!(target instanceof Node)) {
-        return;
-      }
-
-      if (ref.current && !ref.current.contains(target)) {
-        onClickOutside(event); // [!code highlight]
-      }
-    };
-
-    document.addEventListener("mousedown", handleDocumentEvent);
-    document.addEventListener("touchstart", handleDocumentEvent);
+    document.addEventListener(type, onEvent);
 
     return () => {
-      document.removeEventListener("mousedown", handleDocumentEvent);
-      document.removeEventListener("touchstart", handleDocumentEvent);
+      document.removeEventListener(type, onEvent); // [!code highlight]
     };
-  // Stabilize callbacks at the call site.
-  }, [enabled, onClickOutside, ref]); // [!code highlight]
-};
-
-const usePrevious = <T,>(value): T | undefined => {
-  const previousRef = useRef(undefined);
-
-  useEffect(() => {
-    previousRef.current = value;
-  }, [value]);
-
-  return previousRef.current;
-};
-```
-
-```tsx title="UserSearch.tsx"
-const UserSearch = () => {
-  const panelRef = useRef(null);
-  const [isOpen, setIsOpen] = useState(false);
-  const [query, setQuery] = useLocalStorage("user-search-query", "");
-  const debouncedQuery = useDebounce(query, 300);
-  const previousQuery = usePrevious(debouncedQuery);
-  const closePanel = useCallback(() => setIsOpen(false), []);
-  const url = `/api/users?query=${encodeURIComponent(debouncedQuery)}`;
-  const {
-    data: users = [],
-    error,
-    loading,
-    refetch,
-  } = useFetch<User[]>({
-    enabled: debouncedQuery.length > 0,
-    url, // [!code highlight]
-  });
-
-  useClickOutside({ enabled: isOpen, onClickOutside: closePanel, ref: panelRef }); // [!code highlight]
-
-  // ...
-
-  return (
-    <section ref={panelRef}>
-      <input
-        onFocus={() => setIsOpen(true)}
-        onChange={(event) => setQuery(event.target.value)}
-        value={query}
-      />
-      {previousQuery !== debouncedQuery && <p>검색어가 바뀌었습니다.</p>}
-      {loading && <p>불러오는 중입니다.</p>}
-      {error && <button onClick={refetch}>다시 시도</button>}
-      {isOpen && (
-        <ul>
-          {users.map((user) => (
-            <li key={user.id}>{user.name}</li>
-          ))}
-        </ul>
-      )}
-    </section>
-  );
+  }, [enabled, onEvent, type]);
 };
 ```
 
 ## 실수 포인트
 
-- `options`, `onClickOutside` 같은 함수나 객체를 매번 새로 만들면 effect가 반복 실행된다.
-- `useFetch`는 `AbortController`로 이전 요청을 정리해야 늦게 끝난 응답이 화면을 덮어쓰지 않는다.
-- 반환값이 내부 상태 전이를 그대로 드러내면 호출부가 hook 내부 규칙에 묶인다.
-
-## 참고
-
-- [React Custom Hooks](https://react.dev/learn/reusing-logic-with-custom-hooks)
+- 조건문, 반복문, callback 안에서 hook을 호출하지 않는다.
+- 한 곳에서만 쓰는 단순 state를 hook으로 빼지 않는다.
+- 객체나 함수를 인자로 받으면 호출부의 참조 안정성까지 같이 본다.
+- hook 반환 API를 과하게 넓히지 않는다.

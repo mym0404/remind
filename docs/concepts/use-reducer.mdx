@@ -2,52 +2,48 @@
 
 ## API reference
 
-`useReducer`는 상태 전이 규칙을 reducer 함수에 모으고, component에서는 `dispatch`로 action만 보낸다.
+`useReducer`는 상태 변경 규칙을 `reducer`에 모으고, component에서는 `dispatch`로 action만 보낸다.
 
-```tsx title="useReducer-declaration.tsx"
-type Reducer<State, Action> = (state: State, action: Action) => State;
-type Dispatch<Action> = (action: Action) => void;
-type Initializer<InitialArg, State> = (initialArg: InitialArg) => State;
+- `reducer(state, action)`: 현재 state와 action을 받아 다음 state를 반환한다.
+- `dispatch(action)`: action을 reducer로 보내며, 다음 state를 직접 반환하지 않는다.
+- `initialArg`/`init`: `init`이 없으면 `initialArg`가 초기 state이고, 있으면 첫 렌더링에서 `init(initialArg)`가 초기 state가 된다.
+- action union: `type`별 payload를 union으로 나누면 `action.type`에 따라 필요한 값만 좁혀진다.
+- immutable update: 기존 object와 array를 바꾸지 말고 새 값을 반환한다.
 
-declare function useReducer<State, Action>(
-  reducer: Reducer<State, Action>,
-  initialArg: State,
-): [State, Dispatch<Action>];
+## 쓰는 곳
 
-declare function useReducer<State, Action, InitialArg>(
-  reducer: Reducer<State, Action>,
-  initialArg: InitialArg,
-  init: Initializer<InitialArg, State>,
-): [State, Dispatch<Action>];
-```
+- 한 사용자 행동이 여러 state 조각을 함께 바꿀 때 쓴다.
+- add, remove, reset처럼 상태 전이가 action 이름으로 설명될 때 쓴다.
+- 입력값 하나나 boolean 하나처럼 단순한 상태는 `useState`가 더 읽기 쉽다.
 
-- `reducer(state, action)`은 현재 state와 action을 받아 다음 state를 반환한다.
-- `initialArg`는 초기 state를 만들 때 쓰는 값이다.
-- `init`을 넘기면 초기 state는 `init(initialArg)` 결과가 된다.
-- 반환값은 `[state, dispatch]` tuple이다.
-- `dispatch(action)`은 action을 reducer로 보내며, 직접 다음 state를 반환하지 않는다.
+## 바로 쓰는 코드
 
-```tsx title="Counter.tsx"
-type CounterState = { count: number };
+```tsx
+import { useReducer } from "react";
 
-type CounterAction =
+type State = { count: number; history: number[] };
+
+type Action =
   | { type: "increment"; amount: number }
   | { type: "reset" };
 
-const counterReducer = (
-  state: CounterState,
-  action: CounterAction,
-): CounterState => {
+const reducer = (state: State, action: Action): State => {
   switch (action.type) {
-    case "increment":
-      return { count: state.count + action.amount };
+    case "increment": {
+      const count = state.count + action.amount;
+
+      return {
+        count,
+        history: [...state.history, count],
+      };
+    }
     case "reset":
-      return { count: 0 };
+      return { count: 0, history: [] };
   }
 };
 
 const Counter = () => {
-  const [state, dispatch] = useReducer(counterReducer, { count: 0 });
+  const [state, dispatch] = useReducer(reducer, { count: 0, history: [] });
 
   return (
     <button
@@ -60,236 +56,9 @@ const Counter = () => {
 };
 ```
 
-action은 union type으로 좁게 잡는다. 그러면 `action.type`에 따라 payload 타입도 같이 좁혀진다.
-
-```tsx title="ActionUnion.tsx"
-type FormState = {
-  name: string;
-  agreed: boolean;
-};
-
-type FormAction =
-  | { type: "name/change"; value: string }
-  | { type: "agreed/toggle" };
-
-const formReducer = (state: FormState, action: FormAction): FormState => {
-  switch (action.type) {
-    case "name/change":
-      return { ...state, name: action.value };
-    case "agreed/toggle":
-      return { ...state, agreed: !state.agreed };
-  }
-};
-```
-
-초기 state 계산이 비싸거나 props에서 파생되면 lazy initializer를 쓴다. React는 첫 렌더링 때만 `init(initialArg)`를 호출한다.
-
-```tsx title="LazyInitializer.tsx"
-type DraftState = {
-  title: string;
-  tags: string[];
-};
-
-type DraftAction =
-  | { type: "title/change"; value: string }
-  | { type: "tag/add"; value: string };
-
-const createDraftState = (savedTitle: string): DraftState => ({
-  title: savedTitle.trim(),
-  tags: [],
-});
-
-const draftReducer = (state: DraftState, action: DraftAction): DraftState => {
-  switch (action.type) {
-    case "title/change":
-      return { ...state, title: action.value };
-    case "tag/add":
-      return { ...state, tags: [...state.tags, action.value] };
-  }
-};
-
-const DraftEditor = ({ savedTitle }: { savedTitle: string }) => {
-  const [state, dispatch] = useReducer(
-    draftReducer,
-    savedTitle,
-    createDraftState,
-  );
-
-  return (
-    <input
-      value={state.title}
-      onChange={(event) =>
-        dispatch({ type: "title/change", value: event.target.value })
-      }
-    />
-  );
-};
-```
-
-## 언제 쓰나
-
-`useReducer`는 여러 상태 조각이 한 action으로 함께 바뀔 때 쓴다. 입력값 하나나 열림 상태 하나면 `useState`가 더 낫다.
-
-form, filter, cart, wizard, modal stack처럼 상태 도메인이 섞이면 action 이름으로 전이 규칙을 모으는 편이 읽기 쉽다.
-
-:::warning
-reducer는 순수 함수로 둔다. API 요청, 저장, analytics 전송은 이벤트 핸들러나 effect에서 실행한다.
-:::
-
-## 바로 쓰는 코드
-
-```tsx title="Checkout.tsx"
-type SortKey = "name" | "price";
-type Step = "cart" | "shipping" | "review";
-type ModalName = "coupon" | "help";
-
-type Product = {
-  id: string;
-  name: string;
-  category: string;
-  price: number;
-};
-
-type CartItem = Product & {
-  quantity: number;
-};
-
-type CheckoutState = {
-  form: { name: string; address: string };
-  filter: { query: string; category: string; sortKey: SortKey };
-  cartItems: CartItem[];
-  step: Step;
-  modalStack: ModalName[];
-};
-
-type CheckoutAction =
-  // Keep actions specific so payload narrows by type.
-  | { type: "form/change"; field: keyof CheckoutState["form"]; value: string }
-  | { type: "filter/change"; filter: Partial<CheckoutState["filter"]> }
-  | { type: "cart/add"; product: Product } // [!code highlight]
-  | { type: "cart/remove"; productId: string }
-  | { type: "wizard/go"; step: Step }
-  | { type: "modal/open"; name: ModalName }
-  | { type: "modal/close" };
-
-const products: Product[] = [
-  // ...
-];
-
-const initialState: CheckoutState = {
-  form: { name: "", address: "" },
-  filter: { query: "", category: "all", sortKey: "name" },
-  cartItems: [],
-  step: "cart",
-  modalStack: [],
-};
-
-const checkoutReducer = (
-  state: CheckoutState,
-  action: CheckoutAction,
-): CheckoutState => {
-  switch (action.type) {
-    case "form/change":
-      return {
-        ...state,
-        form: { ...state.form, [action.field]: action.value },
-      };
-    case "filter/change":
-      return {
-        ...state,
-        filter: { ...state.filter, ...action.filter }, // [!code highlight]
-      };
-    case "cart/add": {
-      const item = state.cartItems.find(
-        (cartItem) => cartItem.id === action.product.id,
-      );
-
-      // Return new arrays and objects; never mutate state.
-      return {
-        ...state,
-        cartItems: item
-          ? state.cartItems.map((cartItem) =>
-              cartItem.id === action.product.id
-                ? { ...cartItem, quantity: cartItem.quantity + 1 } // [!code highlight]
-                : cartItem,
-            )
-          : [...state.cartItems, { ...action.product, quantity: 1 }], // [!code highlight]
-      };
-    }
-    case "cart/remove":
-      return {
-        ...state,
-        cartItems: state.cartItems.filter(
-          (cartItem) => cartItem.id !== action.productId,
-        ),
-      };
-    case "wizard/go":
-      return { ...state, step: action.step };
-    case "modal/open":
-      return { ...state, modalStack: [...state.modalStack, action.name] };
-    case "modal/close":
-      return { ...state, modalStack: state.modalStack.slice(0, -1) };
-  }
-};
-
-const Checkout = () => {
-  const [state, dispatch] = useReducer(checkoutReducer, initialState);
-
-  const applyDrinkFilter = () => {
-    dispatch({
-      type: "filter/change",
-      filter: { category: "drink", sortKey: "price" },
-    }); // [!code highlight]
-  };
-
-  // ...
-
-  return (
-    <section>
-      {/* form, filter, cart, wizard, modal UI ... */}
-
-      <button type="button" onClick={applyDrinkFilter}>
-        필터 적용
-      </button>
-
-      {products.map((product) => (
-        <button
-          key={product.id}
-          type="button"
-          onClick={() =>
-            dispatch({ type: "cart/add", product }) // [!code highlight]
-          }
-        >
-          {product.name}
-        </button>
-      ))}
-
-      {/* cart and wizard controls ... */}
-
-      {state.modalStack.at(-1) === "coupon" && ( // [!code highlight]
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="coupon-title"
-        >
-          <h2 id="coupon-title">쿠폰</h2>
-          <button type="button" onClick={() => dispatch({ type: "modal/close" })}>
-            닫기
-          </button>
-        </div>
-      )}
-    </section>
-  );
-};
-```
-
 ## 실수 포인트
 
-- action type을 넓은 `string`으로 두면 payload narrowing이 깨진다.
-- `push`, `splice`, 직접 대입으로 기존 상태를 바꾸지 않는다.
-- 단순 setter 묶음이면 `useReducer`보다 `useState`가 낫다.
-- 한 사용자 행동이 여러 setter 순서에 의존하면 reducer로 모을지 본다.
-
-## 참고
-
-- [React useReducer](https://react.dev/reference/react/useReducer)
+- reducer 안에서 API 요청, 저장, analytics 전송을 하지 않는다.
+- 기존 state에 `push`, `splice`, 직접 대입을 쓰지 않는다.
+- action payload를 optional 속성 모음으로 만들지 않는다.
+- 처리하지 않은 action을 `default`에서 조용히 숨기지 않는다.

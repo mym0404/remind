@@ -2,263 +2,62 @@
 
 ## API reference
 
-Compound Component는 Context API로 Root의 상태를 하위 컴포넌트에 나눠 준다. 외부에 노출하는 모양은 `Tabs.Root` 같은 static property 방식이나 `TabsRoot`, `TabsList` 같은 named subcomponent 방식 중 하나로 정한다.
+- `createContext<T | undefined>(undefined)`: Root 밖에서 하위 컴포넌트를 쓴 상황을 구분할 수 있게 기본값을 `undefined`로 둔다.
+- `Provider value`: Root가 소유한 공유 상태와 상태 변경 함수를 하위 컴포넌트에 내려준다.
+- `useContext` guard: 하위 컴포넌트는 전용 hook으로만 Context를 읽고, Provider가 없으면 바로 에러를 던진다.
+- subcomponent 조합: `Tabs.Root`, `Tabs.Trigger`처럼 한 기능의 부품을 묶어 노출하고, 배치는 사용하는 쪽이 정한다.
 
-### `createContext`
+## 쓰는 곳
 
-- 선언: `createContext<T>(defaultValue)`
-- 인자: Provider가 없을 때 읽을 기본값이다.
-- 반환값: `Provider`를 포함한 Context 객체다.
+Compound Component는 Tabs, Accordion, Select, Dropdown처럼 한 UI가 여러 하위 조각으로 나뉘고, 그 조각들이 같은 상태를 공유할 때 쓴다.
 
-```tsx
+Root는 상태의 소유자이고, subcomponent는 Context를 통해 필요한 값만 읽는다. 그래서 사용하는 쪽은 JSX 구조를 자유롭게 조립하면서도 상태 연결 규칙은 한곳에 모을 수 있다.
+
+단순히 부모가 자식에게 props 몇 개를 넘기면 충분한 구조라면 쓰지 않는다. 하위 컴포넌트의 위치와 개수가 화면마다 달라질 때 이 패턴의 값이 생긴다.
+
+## 바로 쓰는 코드
+
+```tsx title="Tabs core"
 type TabsContextValue = {
   selectedValue: string;
   selectValue: (nextValue: string) => void;
 };
-
-const TabsContext = createContext<TabsContextValue | undefined>(undefined);
-```
-
-`undefined`를 기본값으로 두면 하위 컴포넌트가 Root 밖에서 쓰였는지 바로 검사할 수 있다.
-
-### `useContext`
-
-- 선언: `useContext(SomeContext)`
-- 인자: `createContext`가 반환한 Context 객체다.
-- 반환값: 가장 가까운 Provider의 `value`다.
-
-```tsx
+const TabsContext = createContext<TabsContextValue | undefined>(undefined); // [!code highlight]
 const useTabs = () => {
   const context = useContext(TabsContext);
 
   if (context === undefined) {
-    throw new Error("Tabs component must be used within Tabs.Root");
-  }
-
-  return context;
-};
-```
-
-하위 컴포넌트는 이 훅만 통과해서 공유 상태를 읽는다. 그래야 Provider 누락 검사와 타입 좁히기가 한곳에 모인다.
-
-### Provider `value`
-
-- 선언: `<SomeContext.Provider value={contextValue}>`
-- 인자: 하위 컴포넌트가 공유할 값이다.
-- 반환값: `children`을 감싼 React 엘리먼트다.
-
-```tsx
-const TabsRoot = ({ children }: { children: ReactNode }) => {
-  const [selectedValue, setSelectedValue] = useState("overview");
-  const contextValue = useMemo(
-    () => ({ selectedValue, selectValue: setSelectedValue }),
-    [selectedValue],
-  );
-
-  return (
-    <TabsContext.Provider value={contextValue}>{children}</TabsContext.Provider>
-  );
-};
-```
-
-`value`에 객체를 바로 만들면 Root가 렌더링될 때마다 참조가 바뀐다. 값이 상태나 콜백을 담는다면 `useMemo`로 묶어 불필요한 하위 렌더링을 줄인다.
-
-### `children`
-
-- 선언: `children?: ReactNode`
-- 인자: 호출하는 쪽이 조립한 하위 컴포넌트들이다.
-- 반환값: Root가 Provider 아래에 그대로 렌더링하는 내용이다.
-
-```tsx
-const TabsList = ({ children }: { children: ReactNode }) => (
-  <div role="tablist">{children}</div>
-);
-
-const ProductTabs = () => (
-  <Tabs.Root>
-    <Tabs.List>
-      <Tabs.Trigger value="overview">개요</Tabs.Trigger>
-    </Tabs.List>
-  </Tabs.Root>
-);
-```
-
-Root는 하위 컴포넌트의 개수와 순서를 강제하지 않는다. 구조는 사용하는 쪽이 정하고, 상태 연결만 Context가 맡는다.
-
-### Static property와 named subcomponent
-
-- 선언: `const Tabs = { Root, List, Trigger, Content }`
-- 인자: Root 컴포넌트와 함께 노출할 하위 컴포넌트들이다.
-- 반환값: `Tabs.Root` 또는 `Tabs.List`처럼 접근할 수 있는 컴포넌트 묶음이다.
-
-```tsx
-export const TabsRoot = ({ children }: { children: ReactNode }) => (
-  <div>{children}</div>
-);
-export const TabsList = ({ children }: { children: ReactNode }) => (
-  <div role="tablist">{children}</div>
-);
-export const TabsTrigger = ({ children }: { children: ReactNode }) => (
-  <button type="button">{children}</button>
-);
-export const TabsContent = ({ children }: { children: ReactNode }) => (
-  <section>{children}</section>
-);
-
-export const Tabs = {
-  Root: TabsRoot,
-  List: TabsList,
-  Trigger: TabsTrigger,
-  Content: TabsContent,
-};
-```
-
-객체로 묶으면 사용하는 쪽에서 한 기능의 부품이라는 점이 잘 보인다. named export를 함께 열어 두면 트리 셰이킹이나 테스트에서 필요한 컴포넌트만 가져오기 쉽다.
-
-## 언제 쓰나
-
-Compound Component는 `Tabs.Root`, `Tabs.List`, `Tabs.Trigger`, `Tabs.Content`처럼 한 기능을 여러 조각으로 조립할 때 쓴다. 구조는 사용하는 쪽이 정하고, 공유 상태는 Root가 Context로 제공한다.
-
-Tabs, Accordion, Select, Dropdown처럼 하위 컴포넌트의 위치와 개수가 화면마다 달라지는 UI에 잘 맞는다. controlled API는 `value`와 `onValueChange`, 내부 상태만 쓰는 API는 `defaultValue`로 경계를 둔다.
-
-## 바로 쓰는 코드
-
-```tsx title="Tabs.tsx"
-const TabsContext = createContext(undefined);
-
-const useTabs = () => {
-  const context = useContext(TabsContext);
-
-  if (context === undefined) {
-    // Fail fast when a child is rendered outside Tabs.Root.
     throw new Error("Tabs component must be used within Tabs.Root"); // [!code highlight]
   }
 
   return context;
 };
-
-const TabsRoot = (props) => {
-  const { onValueChange, children } = props;
-  const initialValue =
-    props.defaultValue !== undefined ? props.defaultValue : props.value;
-  const [internalValue, setInternalValue] = useState(initialValue);
-  // value wins after mount; defaultValue is only the uncontrolled initial value.
-  const selectedValue = props.value ?? internalValue; // [!code highlight]
-  const isControlled = props.value !== undefined; // [!code highlight]
-
-  const selectValue = useCallback(
-    (nextValue) => {
-      if (!isControlled) {
-        setInternalValue(nextValue);
-      }
-
-      onValueChange?.(nextValue); // [!code highlight]
-    },
-    [isControlled, onValueChange],
-  );
-
+const TabsRoot = ({ children }: { children: ReactNode }) => {
+  const [selectedValue, selectValue] = useState("overview");
   const contextValue = useMemo(
-    () => ({ selectedValue, selectValue }),
-    [selectedValue, selectValue],
+    () => ({ selectedValue, selectValue }), // [!code highlight]
+    [selectedValue],
   );
 
-  return (
-    <TabsContext.Provider value={contextValue}>{children}</TabsContext.Provider>
-  );
+  return <TabsContext.Provider value={contextValue}>{children}</TabsContext.Provider>; // [!code highlight]
 };
 
-const TabsList = ({ children }) => (
-  <div role="tablist">
-    {children}
-  </div>
-);
-
-const TabsTrigger = ({
-  value,
-  children,
-  onClick,
-}) => {
+const TabsTrigger = ({ value, children }: { value: string; children: ReactNode }) => {
   const { selectedValue, selectValue } = useTabs();
-  const selected = selectedValue === value;
 
   return (
-    <button
-      type="button"
-      role="tab"
-      aria-selected={selected}
-      onClick={(event) => {
-        onClick?.(event);
-
-        if (!event.defaultPrevented) {
-          // Let callers cancel the internal selection change.
-          selectValue(value);
-        }
-      }}
-    >
+    <button type="button" aria-selected={selectedValue === value} onClick={() => selectValue(value)}>
       {children}
     </button>
   );
 };
 
-const TabsContent = ({
-  value,
-  children,
-}) => {
-  const { selectedValue } = useTabs();
-
-  if (selectedValue !== value) {
-    return null;
-  }
-
-  return (
-    <section role="tabpanel">
-      {children}
-    </section>
-  );
-};
-
-const Tabs = {
-  Root: TabsRoot,
-  List,
-  Trigger,
-  Content,
-};
+export const Tabs = { Root: TabsRoot, Trigger: TabsTrigger }; // [!code highlight]
 ```
-
-```tsx title="ProductTabs.tsx"
-// ...
-
-const ProductTabs = () => {
-  const [tab, setTab] = useState("overview");
-
-  return (
-    <Tabs.Root value={tab} onValueChange={setTab}>
-      <Tabs.List aria-label="상품 정보">
-        <Tabs.Trigger value="overview">개요</Tabs.Trigger>
-        <Tabs.Trigger value="review">리뷰</Tabs.Trigger>
-        {/* ... */}
-      </Tabs.List>
-
-      <Tabs.Content value="overview">{/* ... */}</Tabs.Content>
-      <Tabs.Content value="review">{/* ... */}</Tabs.Content>
-    </Tabs.Root>
-  );
-};
-```
-
-:::warning
-`value`가 있으면 화면 기준값은 항상 외부 상태다. `defaultValue`는 uncontrolled 모드의 초기값으로만 쓰고, 이후 변경을 현재 선택값 변경처럼 처리하지 않는다.
-:::
 
 ## 실수 포인트
 
-- Root 밖에서 하위 컴포넌트를 쓰면 조용히 실패하지 말고 바로 에러를 던진다.
-- 하위 컴포넌트끼리 props를 직접 주고받게 만들지 않고, Root가 공유 상태의 단일 소유자가 되게 한다.
-- controlled 상태에서는 내부 state를 화면 기준값으로 쓰지 않는다.
-- `onValueChange`는 controlled와 uncontrolled 모두에서 호출한다.
-- 외부 `onClick`이 `preventDefault()`를 호출하면 내부 선택 변경을 건너뛸 수 있게 한다.
-- Accordion처럼 열림 규칙이 다르면 state 타입부터 다르게 잡는다.
-
-## 참고
-
-- [React useContext](https://react.dev/reference/react/useContext)
+- Context 기본값을 의미 있는 fallback처럼 채우면 Root 없이 쓴 버그가 늦게 드러난다.
+- Provider `value`에 객체를 매 렌더마다 새로 만들면 Context 소비 컴포넌트가 불필요하게 다시 렌더링될 수 있다.
+- subcomponent가 서로 props를 직접 전달하기 시작하면 Root가 상태의 단일 소유자라는 장점이 사라진다.
+- 조합 API를 만든다는 이유로 전체 구현을 숨기면 안 된다. 실제 상태 기준은 Root에 남겨 둔다.

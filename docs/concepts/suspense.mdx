@@ -2,137 +2,40 @@
 
 ## API reference
 
-### `<Suspense fallback={...}>`
+- `<Suspense fallback={...}>`: 자식이 아직 렌더링 준비를 끝내지 못하면 `fallback`을 보여주고, 준비되면 실제 UI로 바꾼다.
+- `lazy(() => import(...))`: 컴포넌트 코드를 동적으로 불러온다. 로드가 끝나기 전에는 가까운 Suspense boundary가 pending 상태를 맡는다.
+- thrown Promise/resource: 렌더링 중 읽은 값이 아직 준비되지 않았다는 신호다. Promise나 resource는 렌더링 바깥 계층에서 안정적으로 만들어야 한다.
+- Error Boundary: lazy import 실패, rejected Promise, 렌더링 에러를 처리한다. Suspense는 pending만 처리한다.
 
-`Suspense`는 자식 컴포넌트가 suspend되면 `fallback`을 먼저 렌더링하고, 준비가 끝나면 실제 콘텐츠로 바꾼다. `fallback`은 React node라면 무엇이든 받을 수 있지만, 보통 skeleton이나 짧은 loading 문구처럼 가벼운 UI를 둔다.
+## 쓰는 곳
 
-```tsx
-import { Suspense } from "react";
+- route나 패널처럼 사용자가 기다리는 단위의 loading boundary를 만들 때 쓴다.
+- `React.lazy`로 code splitting한 컴포넌트를 감쌀 때 쓴다.
+- framework, router loader, cache처럼 Suspense를 지원하는 async resource를 읽을 때 쓴다.
 
-const ProfileShell = ({ children }: { children: React.ReactNode }) => (
-  <Suspense fallback={<p aria-busy="true">불러오는 중입니다.</p>}>
-    {children}
-  </Suspense>
-);
-```
+## 바로 쓰는 코드
 
-### `lazy(() => import(...))`
-
-`lazy`는 동적 import를 React 컴포넌트로 감싼다. import가 끝나기 전에는 렌더링 중 suspend되므로 가까운 `Suspense` boundary의 `fallback`이 보인다.
-
-```tsx
+```tsx title="SettingsRoute.tsx"
 import { lazy, Suspense } from "react";
 
 const SettingsPanel = lazy(() => import("./SettingsPanel"));
 
-const SettingsPage = () => (
-  <Suspense fallback={<p aria-busy="true">설정을 불러오는 중입니다.</p>}>
-    <SettingsPanel />
-  </Suspense>
+const SettingsLoading = () => (
+  <section aria-busy="true">
+    <h2>설정을 불러오는 중입니다.</h2>
+  </section>
 );
-```
 
-### Promise 또는 resource로 suspend하기
-
-렌더링 중 읽은 Promise나 resource가 아직 준비되지 않았으면 컴포넌트가 suspend된다. Promise는 boundary 밖에서 만들고, 컴포넌트 안에서는 `use()`처럼 React가 추적할 수 있는 API로 읽는다.
-
-```tsx
-import { Suspense, use } from "react";
-
-type User = {
-  id: string;
-  name: string;
-};
-
-const UserName = ({ userPromise }: { userPromise: Promise<User> }) => {
-  const user = use(userPromise);
-
-  return <p>{user.name}</p>;
-};
-
-const UserCard = ({ userPromise }: { userPromise: Promise<User> }) => (
-  <Suspense fallback={<p aria-busy="true">사용자를 불러오는 중입니다.</p>}>
-    <UserName userPromise={userPromise} />
-  </Suspense>
+const SettingsError = () => (
+  <section role="alert">
+    <h2>설정을 불러오지 못했습니다.</h2>
+  </section>
 );
-```
 
-### Error Boundary와 함께 쓰기
-
-`Suspense`는 pending만 처리한다. lazy import 실패, rejected Promise, 렌더링 에러는 Error Boundary가 받도록 바깥에서 감싼다.
-
-```tsx
-import { lazy, Suspense } from "react";
-
-const ReportPanel = lazy(() => import("./ReportPanel"));
-
-const ReportPage = () => (
-  <ErrorBoundary
-    fallback={<section role="alert">리포트를 불러오지 못했습니다.</section>}
-  >
-    <Suspense fallback={<p aria-busy="true">리포트를 불러오는 중입니다.</p>}>
-      <ReportPanel />
-    </Suspense>
-  </ErrorBoundary>
-);
-```
-
-## 언제 쓰나
-
-Suspense는 자식이 아직 렌더링할 준비가 안 되었을 때 fallback을 보여주는 loading boundary다. `React.lazy`나 Suspense를 지원하는 data source를 기다릴 때 쓴다.
-
-Suspense는 pending만 맡는다. 렌더링 에러나 rejected Promise는 Error Boundary가 처리한다.
-
-boundary는 사용자가 기다리는 단위에 맞춘다. 페이지 전체가 같이 보여야 하면 하나로, 일부만 늦어도 되면 그 부분만 감싼다.
-
-data fetching에 쓰려면 framework, router loader, cache처럼 안정적인 Promise나 resource를 주는 계층이 필요하다.
-
-:::warning
-렌더링 중 `fetch()`로 Promise를 새로 만들면 매 렌더링마다 다시 suspend될 수 있다. Promise는 Server Component, router loader, framework cache 같은 바깥 계층에서 만든다.
-:::
-
-## 바로 쓰는 코드
-
-Promise는 boundary 밖에서 만들고, 안쪽 컴포넌트는 `use()`로 읽는다.
-
-```tsx title="ProfilePage.tsx"
-const ProfileHeader = ({ userPromise }) => {
-  const user = use(userPromise); // [!code highlight]
-
-  return (
-    <header>
-      <h2>{user.name}</h2>
-      <p>{user.email}</p>
-    </header>
-  );
-};
-
-const RecentPosts = ({ postsPromise }) => {
-  const posts = use(postsPromise); // [!code highlight]
-
-  return (
-    <ul>
-      {posts.map((post) => (
-        <li key={post.id}>{post.title}</li>
-      ))}
-    </ul>
-  );
-};
-
-const ProfilePage = ({
-  postsPromise,
-  userPromise,
-}) => (
-  <ErrorBoundary
-    fallback={<section role="alert">프로필을 불러오지 못했습니다.</section>}
-  >
-    <Suspense fallback={<p aria-busy="true">프로필을 불러오는 중입니다.</p>}>
-      <ProfileHeader userPromise={userPromise} />
-
-      {/* Keep independent delays behind smaller boundaries. */}
-      <Suspense fallback={<p aria-busy="true">최근 글을 불러오는 중입니다.</p>}>
-        <RecentPosts postsPromise={postsPromise} />
-      </Suspense>
+const SettingsRoute = () => (
+  <ErrorBoundary fallback={<SettingsError />}>
+    <Suspense fallback={<SettingsLoading />}>
+      <SettingsPanel />
     </Suspense>
   </ErrorBoundary>
 );
@@ -140,11 +43,7 @@ const ProfilePage = ({
 
 ## 실수 포인트
 
-- Suspense fallback과 Error Boundary fallback을 섞으면 pending과 실패가 같은 UI로 보인다.
-- `useEffect` fetch에 Suspense만 감싸도 loading state가 자동으로 사라지지는 않는다.
-- boundary를 너무 크게 잡으면 작은 지연도 전체 화면을 가리고, 너무 잘게 나누면 fallback이 여러 곳에서 따로 깜빡인다.
-- fallback과 실제 콘텐츠 크기가 다르면 layout shift가 커진다.
-
-## 참고
-
-- [React Suspense](https://react.dev/reference/react/Suspense)
+- Suspense fallback과 Error Boundary fallback을 같은 UI로 만들면 pending과 실패를 구분하기 어렵다.
+- 렌더링 중 `fetch()`를 새로 만들면 매 렌더링마다 다시 suspend될 수 있다.
+- boundary를 너무 넓게 잡으면 작은 지연도 화면 전체를 fallback으로 바꾼다.
+- fallback과 실제 콘텐츠 크기가 크게 다르면 layout shift가 커진다.
