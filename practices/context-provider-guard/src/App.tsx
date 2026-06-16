@@ -1,18 +1,36 @@
-import { createContext, useContext, useState } from "react";
+import { createContext, useContext, useMemo, useState } from "react";
 
-type ThemeContextValue = { theme: string; toggleTheme: () => void };
+export type ThemeContextValue = {
+  theme: "light" | "dark";
+  toggleTheme: () => void;
+};
 
-const ThemeContext = createContext<ThemeContextValue>({ theme: "light", toggleTheme: () => undefined });
+const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
 
 export const useTheme = () => useContext(ThemeContext);
 
 export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
-  const [theme, setTheme] = useState("light");
-  const toggleTheme = () => setTheme((current) => (current === "light" ? "dark" : "light"));
-  return <ThemeContext value={{ theme, toggleTheme }}>{children}</ThemeContext>;
+  const [theme, setTheme] = useState<"light" | "dark">("light");
+  const value = useMemo(() => ({ theme, toggleTheme: () => setTheme(theme === "light" ? "dark" : "light") }), [theme]);
+  return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 };
 
-export const App = () => {
-  const { theme, toggleTheme } = useTheme();
-  return <main className="app"><section className="panel stack"><p className="eyebrow">Hooks</p><h1>Context Provider Guard</h1><p role="status">{theme}</p><button type="button" onClick={toggleTheme}>테마 변경</button></section></main>;
+const ThemePanel = () => {
+  const theme = useTheme();
+  return (
+    <section className="panel stack">
+      <p className="eyebrow">State</p>
+      <h1>Context Provider Guard</h1>
+      <p role="status">{theme?.theme}</p>
+      <button type="button" onClick={theme?.toggleTheme}>테마 변경</button>
+    </section>
+  );
 };
+
+export const App = () => (
+  <main className="app">
+    <ThemeProvider>
+      <ThemePanel />
+    </ThemeProvider>
+  </main>
+);

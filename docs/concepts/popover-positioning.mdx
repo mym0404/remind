@@ -1,0 +1,233 @@
+# Popover / Dropdown / Tooltip Positioning
+
+## 언제 쓰나
+
+Popover, Dropdown, Tooltip처럼 trigger 옆에 floating element를 띄울 때 쓴다. trigger와 floating element의 rect를 읽고, viewport 기준 좌표로 위치를 계산한다.
+
+`position: fixed`는 `getBoundingClientRect()` 값을 그대로 쓰고, `absolute`는 document 좌표가 필요할 때만 scroll offset을 더한다.
+
+화면 밖으로 나가지 않게 하려면 clip rect를 먼저 정한다. scroll container 안에서만 보여야 하면 viewport와 container의 교집합을 쓴다.
+
+원하는 placement에 공간이 부족하면 반대 방향으로 flip하고, 그래도 삐져나가면 clip rect 안으로 shift한다.
+
+stacking context가 복잡하면 `body` portal과 `position: fixed`가 제일 단순하다.
+
+:::warning 좌표계부터 고정하기
+한 컴포넌트 안에서는 strategy와 좌표계를 같이 움직여야 한다. rect는 viewport 기준이고, document 좌표가 필요한 순간에만 scroll offset을 더한다.
+:::
+
+## 바로 쓰는 코드
+
+예시는 `body` portal, clip rect, flip/shift, scroll/resize 재계산만 남겼다.
+
+```tsx title="PopoverPositionExample.tsx"
+const OFFSET = 8;
+const PREFERRED_PLACEMENT = "bottom";
+const STRATEGY = "fixed";
+
+const oppositePlacement = {
+  top: "bottom",
+  bottom: "top",
+  left: "right",
+  right: "left",
+};
+
+const toRect = (rect) => ({
+  top: rect.top,
+  right: rect.right,
+  bottom: rect.bottom,
+  left: rect.left,
+  width: rect.width,
+  height: rect.height,
+});
+
+const getBoundedClipRect = (scrollContainer) => {
+  const viewportRect = toRect(
+    new DOMRect(0, 0, window.innerWidth, window.innerHeight),
+  );
+
+  if (scrollContainer === undefined) {
+    return viewportRect;
+  }
+
+  // Clip to the visible part of the scroll container.
+  const containerRect = toRect(scrollContainer.getBoundingClientRect());
+  const top = Math.max(viewportRect.top, containerRect.top);
+  const right = Math.min(viewportRect.right, containerRect.right);
+  const bottom = Math.min(viewportRect.bottom, containerRect.bottom);
+  const left = Math.max(viewportRect.left, containerRect.left);
+
+  return { // [!code highlight]
+    top,
+    right,
+    bottom,
+    left,
+    width: right - left,
+    height: bottom - top,
+  };
+};
+
+const computeFloatingPosition = ({
+  preferredPlacement,
+  triggerRect,
+  floatingRect,
+  clipRect,
+  offset,
+  strategy,
+}) => {
+  const placements = [preferredPlacement, oppositePlacement[preferredPlacement]];
+
+  const placement =
+    placements.find((nextPlacement) => {
+      const basePosition = getBasePosition({
+        placement: nextPlacement,
+        triggerRect,
+        floatingRect,
+        offset,
+      });
+
+      return isInsideClipRect({
+        ...basePosition,
+        floatingRect,
+        clipRect,
+      });
+    }) ?? preferredPlacement; // [!code highlight]
+
+  const basePosition = getBasePosition({
+    placement,
+    triggerRect,
+    floatingRect,
+    offset,
+  });
+
+  // Flip first, then shift what still overflows.
+  const shiftedPosition = shiftIntoClipRect({ // [!code highlight]
+    ...basePosition,
+    floatingRect,
+    clipRect,
+  });
+
+  // DOMRect is viewport-based; absolute positioning needs document offsets.
+  const scrollOffset =
+    strategy === "absolute"
+      ? { top: window.scrollY, left: window.scrollX }
+      : { top: 0, left: 0 }; // [!code highlight]
+
+  return {
+    top: shiftedPosition.top + scrollOffset.top,
+    left: shiftedPosition.left + scrollOffset.left,
+    placement,
+  };
+};
+
+// Keep helpers boring: base coordinates, containment check, and clamping.
+// ...
+
+const PopoverPositionExample = () => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [position, setPosition] = useState();
+  const [portalRoot, setPortalRoot] = useState();
+  const triggerRef = useRef(null);
+  const floatingRef = useRef(null);
+  const scrollContainerRef = useRef(null);
+
+  useEffect(() => {
+    setPortalRoot(document.body);
+  }, []);
+
+  const updatePosition = useCallback(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    const triggerElement = triggerRef.current;
+    const floatingElement = floatingRef.current;
+
+    if (triggerElement === null) {
+      // A missing trigger means there is no stable anchor.
+      setIsOpen(false); // [!code highlight]
+      setPosition(undefined);
+      return;
+    }
+
+    if (floatingElement === null) {
+      return;
+    }
+
+    const clipRect = getBoundedClipRect(
+      scrollContainerRef.current ?? undefined,
+    );
+
+    setPosition(
+      computeFloatingPosition({
+        preferredPlacement: PREFERRED_PLACEMENT,
+        triggerRect: toRect(triggerElement.getBoundingClientRect()), // [!code highlight]
+        floatingRect: toRect(floatingElement.getBoundingClientRect()), // [!code highlight]
+        clipRect,
+        offset: OFFSET,
+        strategy: STRATEGY,
+      }),
+    );
+  }, [isOpen]);
+
+  useLayoutEffect(() => {
+    updatePosition();
+  }, [updatePosition]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    window.addEventListener("resize", updatePosition);
+    window.addEventListener("scroll", updatePosition, true); // [!code highlight]
+
+    return () => {
+      window.removeEventListener("resize", updatePosition);
+      window.removeEventListener("scroll", updatePosition, true);
+    };
+  }, [isOpen, updatePosition]);
+
+  return (
+    <div ref={scrollContainerRef} className="scroll-area">
+      <button ref={triggerRef} type="button" onClick={() => setIsOpen((current) => !current)}>
+        필터
+      </button>
+
+      {isOpen && portalRoot !== undefined
+        ? createPortal(
+            <div
+              ref={floatingRef}
+              className="popover"
+              data-placement={position?.placement}
+              style={{
+                position: STRATEGY,
+                top: position?.top,
+                left: position?.left,
+                // Hide the first paint before measurement.
+                visibility: position === undefined ? "hidden" : "visible", // [!code highlight]
+                zIndex: 1000,
+              }}
+            >
+              {/* ... */}
+            </div>,
+            portalRoot,
+          )
+        : undefined}
+    </div>
+  );
+};
+```
+
+## 실수 포인트
+
+- `strategy`와 좌표계를 섞으면 scroll 후 위치가 밀린다.
+- viewport만 clip rect로 쓰면 scroll container 밖으로 메뉴가 튀어나올 수 있다.
+- flip 후 shift를 하지 않으면 좌우 끝에 가까운 trigger에서 일부가 잘린다.
+- scroll이나 resize 때 위치를 다시 계산하지 않으면 trigger와 floating element가 분리되어 보인다.
+- 부모에 `transform`, `opacity`, `isolation` 같은 stacking context가 있으면 `z-index`만으로는 floating element가 위로 올라오지 않을 수 있다.
+- trigger가 조건부 렌더링으로 사라졌는데 floating element를 열어 두면 기준점 없는 UI가 남는다.
+
+## 참고
+
+- [MDN getBoundingClientRect](https://developer.mozilla.org/en-US/docs/Web/API/Element/getBoundingClientRect)

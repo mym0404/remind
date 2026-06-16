@@ -7,8 +7,8 @@ import { transformerNotationHighlight } from "@shikijs/transformers";
 const rootDir = path.dirname(fileURLToPath(import.meta.url));
 const docsDir = path.join(rootDir, "docs");
 
-const extractReferenceTitles = () => {
-  const markdown = fs.readFileSync(path.join(rootDir, "references", "sections.md"), "utf8");
+const extractReferenceTitles = (referenceFileName: string) => {
+  const markdown = fs.readFileSync(path.join(rootDir, "references", referenceFileName), "utf8");
   const titles: string[] = [];
 
   for (const line of markdown.split(/\r?\n/)) {
@@ -32,6 +32,47 @@ const extractMarkdownTitle = (markdown: string) =>
     ?.replace(/^#\s+/, "")
     .trim();
 
+const createLinksByTitle = (docsSubdir: string, routePrefix: string) =>
+  new Map(
+    fs
+      .readdirSync(path.join(docsDir, docsSubdir))
+      .filter((fileName) => fileName.endsWith(".mdx"))
+      .map((fileName) => {
+        const markdown = fs.readFileSync(path.join(docsDir, docsSubdir, fileName), "utf8");
+        const title = extractMarkdownTitle(markdown);
+
+        if (!title) {
+          throw new Error(`Missing H1 title in docs/${docsSubdir}/${fileName}`);
+        }
+
+        return [title, `/${routePrefix}/${fileName.replace(/\.mdx$/, "")}`] as const;
+      }),
+  );
+
+const createSidebarItems = ({
+  referenceFileName,
+  docsSubdir,
+  routePrefix,
+  label,
+}: {
+  referenceFileName: string;
+  docsSubdir: string;
+  routePrefix: string;
+  label: string;
+}) => {
+  const linksByTitle = createLinksByTitle(docsSubdir, routePrefix);
+
+  return extractReferenceTitles(referenceFileName).map((title) => {
+    const link = linksByTitle.get(title);
+
+    if (!link) {
+      throw new Error(`Missing MDX page for ${label}: ${title}`);
+    }
+
+    return { text: title, link };
+  });
+};
+
 const indexMarkdown = fs.readFileSync(path.join(docsDir, "index.mdx"), "utf8");
 const indexTitle = extractMarkdownTitle(indexMarkdown);
 
@@ -39,31 +80,18 @@ if (!indexTitle) {
   throw new Error("Missing H1 title in docs/index.mdx");
 }
 
-const sectionLinksByTitle = new Map([
-  [indexTitle, "/"] as const,
-  ...fs
-    .readdirSync(path.join(docsDir, "sections"))
-    .filter((fileName) => fileName.endsWith(".mdx"))
-    .map((fileName) => {
-      const markdown = fs.readFileSync(path.join(docsDir, "sections", fileName), "utf8");
-      const title = extractMarkdownTitle(markdown);
+const conceptSidebarItems = createSidebarItems({
+  referenceFileName: "concepts.md",
+  docsSubdir: "concepts",
+  routePrefix: "concepts",
+  label: "concept",
+});
 
-      if (!title) {
-        throw new Error(`Missing H1 title in docs/sections/${fileName}`);
-      }
-
-      return [title, `/sections/${fileName.replace(/\.mdx$/, "")}`] as const;
-    }),
-]);
-
-const sectionSidebarItems = extractReferenceTitles().map((title) => {
-  const link = sectionLinksByTitle.get(title);
-
-  if (!link) {
-    throw new Error(`Missing MDX page for section: ${title}`);
-  }
-
-  return { text: title, link };
+const solutionSidebarItems = createSidebarItems({
+  referenceFileName: "sections.md",
+  docsSubdir: "sections",
+  routePrefix: "sections",
+  label: "solution",
 });
 
 export default defineConfig({
@@ -71,8 +99,8 @@ export default defineConfig({
   base: "/remind/",
   outDir: "dist",
   lang: "ko",
-  title: "React Practice 해답집",
-  description: "React live coding practice의 해답과 핵심 개념을 확인하는 문서 사이트",
+  title: "React Practice Guide",
+  description: "React 개념과 live coding practice 해답을 함께 확인하는 문서 사이트",
   llms: true,
   search: {
     codeBlocks: true,
@@ -88,12 +116,20 @@ export default defineConfig({
     },
   },
   themeConfig: {
-    nav: [{ text: "해답", link: "/" }],
+    nav: [
+      { text: "홈", link: "/" },
+      { text: "개념", link: "/concepts/form-basic" },
+      { text: "해답집", link: "/sections/controlled-fields" },
+    ],
     sidebar: {
       "/": [
         {
-          text: "Practice 해답",
-          items: sectionSidebarItems,
+          text: "개념",
+          items: conceptSidebarItems,
+        },
+        {
+          text: "해답집",
+          items: solutionSidebarItems,
         },
       ],
     },

@@ -1,0 +1,79 @@
+# Virtualized List
+
+## 언제 쓰나
+
+수천 개 이상의 item을 한 번에 렌더링하면 첫 렌더링과 스크롤 layout 계산이 무거워진다.
+
+Virtualized list는 전체 높이만 유지하고, 현재 scroll offset에 맞는 visible item만 DOM에 올린다. item height가 고정이면 `scrollTop / itemHeight`로 range를 계산할 수 있다.
+
+## 바로 쓰는 코드
+
+고정 높이 item 기준 예시다.
+
+```tsx title="VirtualMessageList.tsx"
+// ...
+
+const itemHeight = 56;
+const viewportHeight = 320;
+const overscan = 3;
+
+const VirtualMessageList = ({ messages }) => {
+  const [scrollTop, setScrollTop] = useState(0);
+
+  // Keep the scrollbar size equal to the full list.
+  const totalHeight = messages.length * itemHeight; // [!code highlight]
+  const visibleItemCount = Math.ceil(viewportHeight / itemHeight);
+
+  // Render a small buffer above and below the viewport.
+  const startIndex = Math.max(
+    0,
+    Math.floor(scrollTop / itemHeight) - overscan, // [!code highlight]
+  );
+  const endIndex = Math.min(
+    messages.length,
+    startIndex + visibleItemCount + overscan * 2, // [!code highlight]
+  );
+
+  const visibleMessages = useMemo(
+    () => messages.slice(startIndex, endIndex), // [!code highlight]
+    [endIndex, messages, startIndex],
+  );
+
+  return (
+    <div
+      style={{ height: viewportHeight, overflowY: "auto" }}
+      onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}
+    >
+      <div style={{ height: totalHeight, position: "relative" }}>
+        <ul
+          style={{
+            position: "absolute",
+            top, // [!code highlight]
+            // ...
+          }}
+        >
+          {visibleMessages.map((message) => (
+            <li key={message.id} style={{ height: itemHeight }}>
+              {/* ... */}
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
+  );
+};
+```
+
+## 실수 포인트
+
+- `totalHeight`와 `top: startIndex * itemHeight`는 같이 있어야 한다.
+- `overscan`이 작으면 빈 영역이 보이고, 크면 DOM 절감 효과가 줄어든다.
+- `messages`가 매번 새 배열이면 `slice` memoization 효과가 약하다.
+
+:::warning
+가변 높이 item은 이 계산으로 맞출 수 없다. 실제 높이와 누적 offset을 관리하거나, 측정 기능이 있는 라이브러리를 쓴다.
+:::
+
+## 참고
+
+- [TanStack Virtual](https://tanstack.com/virtual/latest)

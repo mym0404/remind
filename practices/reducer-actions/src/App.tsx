@@ -1,16 +1,27 @@
-import { FormEvent, useReducer, useState } from "react";
+import { useReducer, useState } from "react";
 
-type Todo = { id: string; title: string; done: boolean };
-type Action = { type: "add"; title: string };
+export type Todo = { id: string; title: string; done: boolean };
+export type TodoAction =
+  | { type: "add"; title: string }
+  | { type: "toggle"; id: string }
+  | { type: "remove"; id: string };
 
-export const todoReducer = (todos: Todo[], action: Action) => {
-  if (action.type === "add") return [...todos, { id: action.title, title: action.title, done: false }];
-  return todos;
-};
+export const todoReducer = (todos: Todo[], _action: TodoAction): Todo[] => todos;
 
 export const App = () => {
-  const [todos, dispatch] = useReducer(todoReducer, [{ id: "learn", title: "Reducer 복습", done: false }]);
+  const [todos, dispatch] = useReducer(todoReducer, []);
   const [title, setTitle] = useState("");
-  const addTodo = (event: FormEvent<HTMLFormElement>) => { event.preventDefault(); if (title) dispatch({ type: "add", title }); };
-  return <main className="app"><section className="panel stack"><p className="eyebrow">Hooks</p><h1>Reducer Actions</h1><form onSubmit={addTodo}><label htmlFor="title">할 일</label><input id="title" value={title} onChange={(event) => setTitle(event.target.value)} /><button type="submit">추가</button></form><ul>{todos.map((todo) => <li key={todo.id}>{todo.title}<button type="button">완료</button><button type="button">삭제</button></li>)}</ul></section></main>;
+
+  return (
+    <main className="app">
+      <section className="panel stack">
+        <p className="eyebrow">State</p>
+        <h1>Reducer Actions</h1>
+        <label htmlFor="todo">할 일</label>
+        <input id="todo" value={title} onChange={(event) => setTitle(event.target.value)} />
+        <button type="button" onClick={() => dispatch({ type: "add", title })}>추가</button>
+        <ul>{todos.map((todo) => <li key={todo.id}>{todo.title}</li>)}</ul>
+      </section>
+    </main>
+  );
 };

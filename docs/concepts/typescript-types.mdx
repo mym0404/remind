@@ -1,0 +1,159 @@
+# TypeScript 타입 설계
+
+## 언제 쓰나
+
+API 응답, 리스트 항목, props, 이벤트 핸들러처럼 데이터 경계가 흐려지기 쉬운 곳에 쓴다.
+
+필드가 없을 수 있으면 `?`, 값이 비어 있음을 표현하면 `null`을 쓴다.
+
+상태마다 필요한 값이 다르면 discriminated union으로 렌더링 분기를 좁힌다.
+
+## 바로 쓰는 코드
+
+```ts title="user-types.ts"
+export type ApiResponse<T> = {
+  data: T;
+  meta: {
+    page: number;
+    total: number;
+  };
+};
+
+export type User = {
+  id: string;
+  name: string;
+  avatarUrl?: string;
+  deletedAt: string | null;
+  role: "admin" | "member";
+};
+
+// Keep list props detached from the full API shape.
+export type UserListItem = Pick<User, "id" | "name" | "role">; // [!code highlight]
+
+export type UserCreateInput = Omit<User, "id" | "deletedAt">;
+export type UserPatchInput = Partial<Pick<User, "name" | "avatarUrl" | "role">>;
+
+export type AsyncState<T> =
+  | { status: "idle" }
+  | { status: "loading" }
+  | { status: "success"; data: T } // [!code highlight]
+  | { status: "error"; message: string };
+```
+
+```tsx title="UserCard.tsx"
+type UserCardProps = {
+  user: UserListItem;
+  selected?: boolean;
+  onSelect: (id: string) => void;
+  children?: ReactNode;
+};
+
+// Fails when a new role has no label.
+const roleLabel: Record<User["role"], string> = {
+  admin: "관리자",
+  member: "멤버",
+}; // [!code highlight]
+
+const useRemoteData = <T,>(load: () => Promise<ApiResponse<T>>) => {
+  const [state, setState] = useState<AsyncState<T>>({ status: "idle" });
+
+  useEffect(() => {
+    let ignored = false;
+
+    const run = async () => {
+      setState({ status: "loading" });
+
+      try {
+        const response = await load();
+
+        if (!ignored) {
+          setState({ status: "success", data: response.data }); // [!code highlight]
+        }
+      } catch (error) {
+        if (!ignored) {
+          const message =
+            error instanceof Error ? error.message : "데이터를 불러오지 못했어요.";
+          setState({ status: "error", message });
+        }
+      }
+    };
+
+    void run();
+
+    return () => {
+      // Ignore late responses after unmount or dependency change.
+      ignored = true;
+    };
+  }, [load]);
+
+  return state;
+};
+
+const UserCard = ({
+  user,
+  selected = false,
+  onSelect,
+  children,
+}: UserCardProps) => {
+  const handleClick = (event: MouseEvent<HTMLButtonElement>) => {
+    event.currentTarget.blur();
+    onSelect(user.id); // [!code highlight]
+  };
+
+  return (
+    <li aria-selected={selected}>
+      <button type="button" onClick={handleClick}>
+        {user.name} · {roleLabel[user.role]}
+      </button>
+      {children}
+    </li>
+  );
+};
+
+const UserSearch = () => {
+  const [keyword, setKeyword] = useState("");
+
+  const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
+    setKeyword(event.currentTarget.value); // [!code highlight]
+  };
+
+  return <input value={keyword} onChange={handleChange} />;
+};
+```
+
+```ts title="dom-elements.ts"
+const focusElement = (element: HTMLElement) => {
+  element.focus();
+};
+
+const readInputValue = (input: HTMLInputElement) => {
+  return input.value.trim();
+};
+
+const disableButton = (button: HTMLButtonElement) => {
+  button.disabled = true;
+};
+
+const measurePanel = (panel: HTMLDivElement) => {
+  return panel.getBoundingClientRect().height;
+};
+```
+
+`UserCardProps`처럼 props 타입은 컴포넌트 가까이에 둔다.
+
+`Pick`, `Omit`, `Partial`은 기존 타입에서 화면·입력·수정 타입을 만들 때 쓴다.
+
+hook이 데이터 모양을 몰라도 되면 `useRemoteData<T>`처럼 generic을 쓴다.
+
+## 실수 포인트
+
+- optional과 nullable을 섞어 쓰면 서버 계약이 흐려진다.
+- `string | null | undefined`는 실제로 세 상태가 모두 필요한 필드에만 쓴다.
+- API 타입을 그대로 props까지 흘려보내면 화면에 불필요한 필드까지 결합된다.
+- 이벤트에서는 `event.target`보다 타입이 좁혀진 `event.currentTarget`을 먼저 본다.
+- DOM 타입은 필요한 속성 기준으로 좁힌다.
+- union type은 값을 쓰기 전에 `status`, `type`, `kind` 같은 필드로 좁힌다.
+
+## 참고
+
+- [TypeScript Everyday Types](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html)

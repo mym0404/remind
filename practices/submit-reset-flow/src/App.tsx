@@ -1,23 +1,33 @@
 import { FormEvent, useState } from "react";
 
-export const App = () => {
-  const [title, setTitle] = useState("");
-  const [message, setMessage] = useState("대기 중");
+export const submitMessage = async (message: string) => {
+  if (message.trim() === "fail") throw new Error("submit failed");
+  return { savedMessage: message.trim() };
+};
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+export const App = () => {
+  const [message, setMessage] = useState("");
+  const [status, setStatus] = useState("작성 중");
+
+  const submit = async (event: FormEvent) => {
     event.preventDefault();
-    setMessage(`${title || "제목 없음"} 저장됨`);
+    await submitMessage(message);
+    setStatus("저장 완료");
   };
 
   return (
-    <main className="app"><section className="panel stack">
-      <p className="eyebrow">Form</p><h1>Submit Reset Flow</h1>
-      <form className="stack" aria-label="할 일 저장" onSubmit={handleSubmit}>
-        <label htmlFor="title">제목</label>
-        <input id="title" value={title} onChange={(event) => setTitle(event.target.value)} />
-        <div className="row"><button type="submit">저장</button><button type="button">초기화</button></div>
+    <main className="app">
+      <form className="panel stack" onSubmit={submit}>
+        <p className="eyebrow">Form</p>
+        <h1>Submit Reset Flow</h1>
+        <label htmlFor="message">메시지</label>
+        <input id="message" value={message} onChange={(event) => setMessage(event.target.value)} />
+        <div className="row">
+          <button type="submit">저장</button>
+          <button type="button">초기화</button>
+        </div>
+        <p role="status">{status}</p>
       </form>
-      <p role="status">{message}</p>
-    </section></main>
+    </main>
   );
 };

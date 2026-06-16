@@ -1,9 +1,25 @@
-import { useMemo, useState } from "react";
+import { useDeferredValue, useState } from "react";
 
-const metrics = Array.from({ length: 2000 }, (_, index) => `Metric ${index}`);
+export const items = ["React Handbook", "Router Patterns", "Testing Guide", "CSS Layout"];
+
+export const filterItems = (allItems: string[], query: string) =>
+	allItems;
 
 export const App = () => {
   const [query, setQuery] = useState("");
-  const filteredMetrics = useMemo(() => metrics.filter((metric) => metric.toLowerCase().includes(query.toLowerCase())), [query]);
-  return <main className="app"><section className="panel stack"><p className="eyebrow">List</p><h1>Deferred Filter List</h1><label htmlFor="query">Metric 검색</label><input id="query" value={query} onChange={(event) => setQuery(event.target.value)} /><p role="status">{filteredMetrics.length}개 표시</p><ul>{filteredMetrics.slice(0, 20).map((metric) => <li key={metric}>{metric}</li>)}</ul></section></main>;
+  const deferredQuery = useDeferredValue(query);
+  const filtered = filterItems(items, deferredQuery);
+
+  return (
+    <main className="app">
+      <section className="panel stack">
+        <p className="eyebrow">List</p>
+        <h1>Deferred Filter List</h1>
+        <label htmlFor="query">검색어</label>
+        <input id="query" value={query} onChange={(event) => setQuery(event.target.value)} />
+        <p role="status">{query !== deferredQuery ? "목록 갱신 중" : "목록 준비"}</p>
+        <ul>{filtered.map((item) => <li key={item}>{item}</li>)}</ul>
+      </section>
+    </main>
+  );
 };

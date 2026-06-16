@@ -1,0 +1,105 @@
+# Context + Provider
+
+## 언제 쓰나
+
+Context는 멀리 떨어진 컴포넌트가 같은 상태나 action을 공유할 때만 쓴다. 한두 단계 props면 props가 더 단순하다.
+
+Toast, Modal, 로그인 사용자, 테마처럼 앱 단위 API가 필요할 때 Provider에 state와 action을 둔다.
+
+## 바로 쓰는 코드
+
+```tsx title="ModalProvider.tsx"
+const ModalContext = createContext(undefined);
+
+const ModalProvider = ({ children }) => {
+  const [modal, setModal] = useState();
+
+  const openConfirm = useCallback((title, message) => {
+    setModal({ type: "confirm", title, message });
+  }, []);
+
+  const closeModal = useCallback(() => setModal(undefined), []);
+
+  // Keep value stable for consumers that only need actions.
+  const value = useMemo(
+    () => ({ modal, openConfirm, closeModal }),
+    [modal, openConfirm, closeModal], // [!code highlight]
+  );
+
+  return (
+    <ModalContext.Provider value={value}>
+      {children}
+      {modal && <ConfirmDialog modal={modal} onClose={closeModal} />}
+    </ModalContext.Provider>
+  );
+};
+
+const useModal = () => {
+  const context = useContext(ModalContext);
+
+  if (context === undefined) {
+    // Fail fast when the Provider is missing.
+    throw new Error("useModal must be used within ModalProvider"); // [!code highlight]
+  }
+
+  return context;
+};
+
+// ...
+
+const ConfirmDialog = ({
+  modal,
+  onClose,
+}) => (
+  <div role="dialog" aria-modal="true" aria-labelledby="confirm-title">
+    <h2 id="confirm-title">{modal.title}</h2>
+    {/* ... */}
+    <button type="button" onClick={onClose}>닫기</button>
+  </div>
+);
+```
+
+```tsx title="DeleteButton.tsx"
+const DeleteButton = () => {
+  const { openConfirm } = useModal();
+
+  return (
+    <button
+      type="button"
+      onClick={() =>
+        openConfirm("삭제 확인", "선택한 항목을 삭제하시겠습니까?")
+      }
+    >
+      삭제
+    </button>
+  );
+};
+```
+
+```tsx title="App.tsx"
+const App = () => {
+  return (
+    <ModalProvider>
+      <DeleteButton />
+    </ModalProvider>
+  );
+};
+```
+
+`ToastProvider`도 toast 배열과 `showToast`, `dismissToast` action만 바꾸면 같은 구조다.
+
+:::warning
+자주 바뀌는 state와 action을 한 Context에 넣으면 action만 쓰는 컴포넌트도 다시 렌더링될 수 있다. 필요하면 state Context와 action Context를 나눈다.
+:::
+
+## 실수 포인트
+
+- Context 기본값에 빈 함수나 더미 객체를 넣으면 Provider 누락이 묻힌다.
+- `value={{ modal, openConfirm, closeModal }}`처럼 새 객체를 바로 넘기면 구독 컴포넌트가 다시 렌더링될 수 있다.
+- 읽기 빈도가 다른 값을 한 Context에 몰아넣으면 작은 상태 변경도 넓게 퍼진다.
+- Toast나 Modal도 필요한 route나 layout 범위까지만 Provider로 감싼다.
+- local state로 충분한 값을 Context로 올리면 상태 소유권과 변경 범위가 흐려진다.
+
+## 참고
+
+- [React createContext](https://react.dev/reference/react/createContext)

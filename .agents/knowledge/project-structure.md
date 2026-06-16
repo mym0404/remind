@@ -16,9 +16,10 @@
 ## Directories
 
 - `docs/`: Rspress가 읽는 문서 root다.
-- `docs/index.mdx`: practice 해답집 홈 route의 원본이다.
+- `docs/index.mdx`: 개념과 해답집 홈 route의 원본이다.
+- `docs/concepts/`: React 개념 MDX 문서 원본이 있는 위치다.
 - `docs/sections/`: practice별 해답 MDX 문서 원본이 있는 위치다.
-- `references/`: 문서 목록 기준이 있는 위치다.
+- `references/`: 개념과 해답 문서 목록 기준이 있는 위치다.
 - `practices/`: CoderPad형 React + TypeScript practice package workspace다.
 - `practices/*/README.md`: practice별 한국어 문제 지시와 채점 기준이다.
 - `practices/*/src/App.tsx`: practice starter 코드의 중심 파일이다.

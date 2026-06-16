@@ -1,29 +1,51 @@
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
-import { App } from "./App";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { App, canLoadNext, getNextItems } from "./App";
 
 class MockIntersectionObserver {
   static instances: MockIntersectionObserver[] = [];
   observe = vi.fn();
   disconnect = vi.fn();
-  constructor(public callback: IntersectionObserverCallback) { MockIntersectionObserver.instances.push(this); }
-  trigger() { this.callback([{ isIntersecting: true } as IntersectionObserverEntry], this as unknown as IntersectionObserver); }
+  constructor(public callback: IntersectionObserverCallback) {
+    MockIntersectionObserver.instances.push(this);
+  }
+  trigger(isIntersecting = true) {
+    this.callback([{ isIntersecting } as IntersectionObserverEntry], this as unknown as IntersectionObserver);
+  }
   unobserve = vi.fn();
   takeRecords = vi.fn(() => []);
-  root = null; rootMargin = ""; thresholds = [];
 }
 
 describe("Infinite Scroll Sentinel practice", () => {
-  it("observes the sentinel, appends the next page, and cleans up", () => {
+  beforeEach(() => {
+    MockIntersectionObserver.instances = [];
     vi.stubGlobal("IntersectionObserver", MockIntersectionObserver);
+  });
+
+  it("creates deterministic page items", () => {
+    expect(getNextItems(1, 3)).toEqual(["Item 4", "Item 5", "Item 6"]);
+  });
+
+  it("allows loading only when not already loading and more data exists", () => {
+    expect(canLoadNext(false, true)).toBe(true);
+    expect(canLoadNext(true, true)).toBe(false);
+    expect(canLoadNext(false, false)).toBe(false);
+  });
+
+  it("observes the sentinel on mount", () => {
+    render(<App />);
+    expect(MockIntersectionObserver.instances[0].observe).toHaveBeenCalledWith(screen.getByTestId("sentinel"));
+  });
+
+  it("appends the next page when the sentinel intersects", () => {
+    render(<App />);
+    MockIntersectionObserver.instances[0].trigger(true);
+    expect(screen.getByText("Item 10")).toBeInTheDocument();
+  });
+
+  it("disconnects the observer on unmount", () => {
     const { unmount } = render(<App />);
-    expect(MockIntersectionObserver.instances).toHaveLength(1);
-    const observer = MockIntersectionObserver.instances[0];
-    expect(observer.observe).toHaveBeenCalledWith(screen.getByTestId("sentinel"));
-    observer.trigger();
-    expect(screen.getByText("항목 15")).toBeInTheDocument();
     unmount();
-    expect(observer.disconnect).toHaveBeenCalled();
-    vi.unstubAllGlobals();
+    expect(MockIntersectionObserver.instances[0].disconnect).toHaveBeenCalled();
   });
 });

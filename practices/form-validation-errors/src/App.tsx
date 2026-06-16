@@ -1,33 +1,39 @@
-import { FormEvent, useState } from "react";
+import { FormEvent, useRef, useState } from "react";
 
-export const validateProfile = (values: { name: string; email: string }) => {
-  return {};
+export type FormValues = {
+  name: string;
+  email: string;
 };
 
-export const App = () => {
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [message, setMessage] = useState("아직 제출하지 않았습니다.");
+export type FormErrors = Partial<Record<keyof FormValues, string>>;
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+export const validateForm = (_values: FormValues): FormErrors => ({});
+
+export const App = () => {
+  const [values, setValues] = useState<FormValues>({ name: "", email: "" });
+  const [errors, setErrors] = useState<FormErrors>({});
+  const nameRef = useRef<HTMLInputElement>(null);
+  const emailRef = useRef<HTMLInputElement>(null);
+
+  const submit = (event: FormEvent) => {
     event.preventDefault();
-    setMessage(`${name || "이름 없음"} 저장`);
+    const nextErrors = validateForm(values);
+    setErrors(nextErrors);
   };
 
   return (
     <main className="app">
-      <section className="panel stack">
+      <form className="panel stack" onSubmit={submit} noValidate>
         <p className="eyebrow">Form</p>
         <h1>Form Validation Errors</h1>
-        <form className="stack" aria-label="프로필 폼" onSubmit={handleSubmit} noValidate>
-          <label htmlFor="name">이름</label>
-          <input id="name" value={name} onChange={(event) => setName(event.target.value)} />
-          <label htmlFor="email">이메일</label>
-          <input id="email" value={email} onChange={(event) => setEmail(event.target.value)} />
-          <button type="submit">저장</button>
-        </form>
-        <p role="status">{message}</p>
-      </section>
+        <label htmlFor="name">이름</label>
+        <input id="name" ref={nameRef} value={values.name} onChange={(event) => setValues({ ...values, name: event.target.value })} />
+        {errors.name ? <p id="name-error">{errors.name}</p> : null}
+        <label htmlFor="email">이메일</label>
+        <input id="email" ref={emailRef} value={values.email} onChange={(event) => setValues({ ...values, email: event.target.value })} />
+        {errors.email ? <p id="email-error">{errors.email}</p> : null}
+        <button type="submit">제출</button>
+      </form>
     </main>
   );
 };

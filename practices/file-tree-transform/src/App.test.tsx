@@ -2,19 +2,34 @@ import { describe, expect, it } from "vitest";
 import { buildFileTree } from "./App";
 
 describe("File Tree Transform practice", () => {
-  it("builds an arbitrarily deep folder tree", () => {
-    const tree = buildFileTree([
-      { path: "app/src/components/Button.tsx", contents: "button" },
-      { path: "app/README.md", contents: "readme" },
-      { path: "app/src/App.tsx", contents: "app" },
+  it("creates nested folder and file nodes", () => {
+    expect(buildFileTree(["src/components/Button.tsx"])).toEqual([
+      {
+        type: "folder",
+        name: "src",
+        children: [
+          {
+            type: "folder",
+            name: "components",
+            children: [{ type: "file", name: "Button.tsx" }],
+          },
+        ],
+      },
     ]);
-    expect(tree[0]).toMatchObject({ name: "app", type: "folder", path: "app" });
-    expect(tree[0].children?.map((node) => node.name)).toEqual(["src", "README.md"]);
-    expect(tree[0].children?.[0].children?.map((node) => node.name)).toEqual(["components", "App.tsx"]);
   });
 
-  it("sorts folders before files and ignores case", () => {
-    const tree = buildFileTree([{ path: "b.txt", contents: "" }, { path: "A/a.txt", contents: "" }]);
-    expect(tree.map((node) => node.name)).toEqual(["A", "b.txt"]);
+  it("deduplicates repeated paths", () => {
+    expect(buildFileTree(["README.md", "README.md"])).toEqual([{ type: "file", name: "README.md" }]);
+  });
+
+  it("sorts folders before files at the same depth", () => {
+    expect(buildFileTree(["z-file.ts", "src/App.tsx"])[0]).toMatchObject({ type: "folder", name: "src" });
+  });
+
+  it("sorts names case-insensitively inside each depth", () => {
+    expect(buildFileTree(["beta.ts", "Alpha.ts"])).toEqual([
+      { type: "file", name: "Alpha.ts" },
+      { type: "file", name: "beta.ts" },
+    ]);
   });
 });

@@ -3,13 +3,37 @@ import { describe, expect, it } from "vitest";
 import { App, getVisibleRange } from "./App";
 
 describe("Virtualized List Range practice", () => {
-  it("calculates the visible range with overscan", () => {
-    expect(getVisibleRange({ scrollTop: 120, viewportHeight: 90, rowHeight: 30, itemCount: 100, overscan: 2 })).toEqual({ start: 2, end: 9 });
+  it("calculates a visible range from scroll position", () => {
+    expect(getVisibleRange({ scrollTop: 90, viewportHeight: 120, rowHeight: 30, itemCount: 100, overscan: 0 })).toEqual({
+      start: 3,
+      end: 7,
+      beforeHeight: 90,
+      afterHeight: 2790,
+    });
   });
 
-  it("renders only the rows in the visible range", () => {
+  it("applies overscan around the visible range", () => {
+    expect(getVisibleRange({ scrollTop: 90, viewportHeight: 120, rowHeight: 30, itemCount: 100, overscan: 2 })).toMatchObject({
+      start: 1,
+      end: 9,
+    });
+  });
+
+  it("clamps the range at the list boundaries", () => {
+    expect(getVisibleRange({ scrollTop: 0, viewportHeight: 120, rowHeight: 30, itemCount: 5, overscan: 10 })).toMatchObject({
+      start: 0,
+      end: 5,
+    });
+  });
+
+  it("does not render every row", () => {
     render(<App />);
-    expect(screen.getByRole("status")).toHaveTextContent("렌더링 12개 이하");
-    expect(screen.queryByText("Row 1999")).not.toBeInTheDocument();
+    expect(screen.queryByText("Row 1000")).not.toBeInTheDocument();
+  });
+
+  it("renders spacer elements for offscreen rows", () => {
+    render(<App />);
+    expect(screen.getByTestId("before-spacer")).toBeInTheDocument();
+    expect(screen.getByTestId("after-spacer")).toBeInTheDocument();
   });
 });

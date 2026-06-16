@@ -14,6 +14,7 @@
   },
   "devDependencies": {
     "@babel/parser": "catalog:",
+    "@biomejs/biome": "^2.5.0",
     "@shikijs/transformers": "catalog:",
     "@types/node": "catalog:",
     "@types/react": "catalog:",

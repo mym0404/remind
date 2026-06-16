@@ -4,21 +4,40 @@ import { describe, expect, it } from "vitest";
 import { App, computePopoverPosition } from "./App";
 
 describe("Popover Positioning practice", () => {
-  it("flips from bottom to top when the popover would leave the viewport", () => {
-    expect(computePopoverPosition({
-      preferredPlacement: "bottom",
-      offset: 8,
-      triggerRect: { top: 170, right: 180, bottom: 190, left: 120, width: 60, height: 20 },
-      floatingRect: { width: 160, height: 80 },
-      viewportRect: { top: 0, right: 240, bottom: 220, left: 0, width: 240, height: 220 },
-    })).toEqual({ top: 82, left: 80, placement: "top" });
+  it("places the popover below the trigger by default", () => {
+    expect(computePopoverPosition({ top: 20, left: 40, width: 100, height: 30 }, { top: 0, left: 0, width: 120, height: 80 }, { width: 500, height: 500 })).toEqual({
+      top: 50,
+      left: 40,
+      placement: "bottom",
+    });
   });
 
-  it("opens and closes with outside click and Escape", async () => {
+  it("flips above the trigger when bottom space is not enough", () => {
+    expect(computePopoverPosition({ top: 460, left: 40, width: 100, height: 30 }, { top: 0, left: 0, width: 120, height: 80 }, { width: 500, height: 500 })).toMatchObject({
+      top: 380,
+      placement: "top",
+    });
+  });
+
+  it("shifts horizontally to stay inside the viewport", () => {
+    expect(computePopoverPosition({ top: 20, left: 450, width: 60, height: 30 }, { top: 0, left: 0, width: 120, height: 80 }, { width: 500, height: 500 }).left).toBe(380);
+  });
+
+  it("opens and closes from the trigger", async () => {
     const user = userEvent.setup();
     render(<App />);
+
     await user.click(screen.getByRole("button", { name: "필터" }));
-    expect(screen.getByRole("dialog", { name: "필터 옵션" })).toBeInTheDocument();
+    expect(screen.getByRole("dialog")).toHaveTextContent("상태 필터");
+    await user.click(screen.getByRole("button", { name: "필터" }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("closes with Escape and outside click", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: "필터" }));
     await user.keyboard("{Escape}");
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });

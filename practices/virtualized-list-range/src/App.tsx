@@ -1,8 +1,33 @@
-export const items = Array.from({ length: 2000 }, (_, index) => ({ id: `item-${index}`, label: `Row ${index}` }));
+import { useState } from "react";
 
-export const getVisibleRange = (_params: { scrollTop: number; viewportHeight: number; rowHeight: number; itemCount: number; overscan: number }) => ({ start: 0, end: items.length });
+export type VisibleRange = { start: number; end: number; beforeHeight: number; afterHeight: number };
+
+export const getVisibleRange = (_options: {
+  scrollTop: number;
+  viewportHeight: number;
+  rowHeight: number;
+  itemCount: number;
+  overscan: number;
+}): VisibleRange => ({ start: 0, end: 0, beforeHeight: 0, afterHeight: 0 });
+
+const items = Array.from({ length: 1000 }, (_, index) => `Row ${index + 1}`);
 
 export const App = () => {
-  const visibleItems = items;
-  return <main className="app"><section className="panel stack"><p className="eyebrow">List</p><h1>Virtualized List Range</h1><p role="status">{visibleItems.length}개 렌더링</p><ul>{visibleItems.map((item) => <li key={item.id}>{item.label}</li>)}</ul></section></main>;
+  const [scrollTop, setScrollTop] = useState(0);
+  const range = getVisibleRange({ scrollTop, viewportHeight: 120, rowHeight: 30, itemCount: items.length, overscan: 2 });
+  const visibleItems = items.slice(range.start, range.end);
+
+  return (
+    <main className="app">
+      <section className="panel stack">
+        <p className="eyebrow">List</p>
+        <h1>Virtualized List Range</h1>
+        <div style={{ height: 120, overflow: "auto" }} onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}>
+          <div data-testid="before-spacer" style={{ height: range.beforeHeight }} />
+          {visibleItems.map((item) => <div key={item}>{item}</div>)}
+          <div data-testid="after-spacer" style={{ height: range.afterHeight }} />
+        </div>
+      </section>
+    </main>
+  );
 };

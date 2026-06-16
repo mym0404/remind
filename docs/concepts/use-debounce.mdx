@@ -1,0 +1,101 @@
+# useDebounce
+
+## 언제 쓰나
+
+입력이 잠깐 멈춘 뒤에만 값이 바뀌어야 할 때 쓴다. 검색, 자동완성, 서버 필터처럼 짧은 시간에 값이 여러 번 바뀌는 화면에 맞다.
+
+원본 `value`는 즉시 바뀌고, debounced state는 마지막 변경 후 `delay`가 지나면 따라간다.
+
+:::warning
+Debounce는 요청 시작만 늦춘다. 이미 시작된 요청은 `AbortController`나 request id로 막아야 늦은 응답이 화면을 덮지 않는다.
+:::
+
+## 바로 쓰는 코드
+
+```tsx title="useDebounce.ts"
+const useDebounce = <T,>(value, delay) => {
+  const [debouncedValue, setDebouncedValue] = useState(value);
+
+  useEffect(() => {
+    const timerId = window.setTimeout(() => {
+      setDebouncedValue(value); // [!code highlight]
+    }, delay);
+
+    return () => {
+      // Drop the previous pending value.
+      window.clearTimeout(timerId); // [!code highlight]
+    };
+  }, [value, delay]);
+
+  return debouncedValue;
+};
+```
+
+```tsx title="SearchPage.tsx"
+const SearchPage = () => {
+  const [query, setQuery] = useState("");
+  const debouncedQuery = useDebounce(query.trim(), 400); // [!code highlight]
+  const [items, setItems] = useState([]);
+
+  useEffect(() => {
+    if (debouncedQuery === "") {
+      setItems([]);
+      return;
+    }
+
+    // Debounce does not cancel in-flight requests.
+    const abortController = new AbortController(); // [!code highlight]
+
+    const search = async () => {
+      try {
+        const response = await fetch(
+          `/api/search?q=${encodeURIComponent(debouncedQuery)}`,
+          { signal: abortController.signal },
+        );
+
+        if (!response.ok) {
+          throw new Error("검색 결과를 가져오지 못했습니다.");
+        }
+
+        const items = (await response.json()) as SearchResult[];
+        setItems(items);
+      } catch {
+        if (abortController.signal.aborted) {
+          return;
+        }
+
+        // error state 처리
+      }
+    };
+
+    void search();
+
+    return () => {
+      abortController.abort(); // [!code highlight]
+    };
+  }, [debouncedQuery]); // [!code highlight]
+
+  return (
+    <section>
+      <input
+        value={query}
+        onChange={(event) => setQuery(event.target.value)}
+      />
+
+      <ul>
+        {/* ... */}
+      </ul>
+    </section>
+  );
+};
+```
+
+## 실수 포인트
+
+- 요청 effect는 원본 `query`가 아니라 `debouncedQuery`에 걸어 둔다.
+- `delay`를 런타임에 바꿀 수 있으면 dependency에서 빼지 않는다.
+- Debounce와 요청 취소는 별개로 다룬다.
+
+## 참고
+
+- [React useEffect](https://react.dev/reference/react/useEffect)

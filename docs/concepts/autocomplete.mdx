@@ -1,0 +1,210 @@
+# Autocomplete
+
+## 언제 쓰나
+
+입력 중 추천 값을 보여줘야 할 때 쓴다. 화면 값은 즉시 반영하고, API 요청은 debounce된 값으로 보낸다.
+
+선택값, 열림 상태, active item, `loading`, `error`, `empty`를 분리해야 키보드와 비동기 UI가 엉키지 않는다. 닫기 동작은 목록만 닫고 input 값은 유지한다.
+
+:::warning
+추천 목록으로 DOM focus를 옮기면 타이핑 흐름이 끊긴다. input focus는 유지하고 현재 항목은 `aria-activedescendant`로만 전달한다.
+:::
+
+## 바로 쓰는 코드
+
+input은 `aria-controls`로 listbox와 연결하고, active option은 `aria-activedescendant`로만 알린다.
+
+```tsx title="UserAutocomplete.tsx"
+const getNextIndex = (
+  currentIndex,
+  itemCount,
+  step,
+) => {
+  // Wrap keyboard navigation without moving DOM focus.
+  if (itemCount === 0) return undefined;
+  if (currentIndex === undefined) return step === 1 ? 0 : itemCount - 1;
+  return (currentIndex + step + itemCount) % itemCount;
+};
+
+const UserAutocomplete = () => {
+  const inputId = useId();
+  const listboxId = useId();
+  const rootRef = useRef(null);
+
+  const [value, setValue] = useState("");
+  const [selectedUser, setSelectedUser] = useState();
+  const [isOpen, setIsOpen] = useState(false);
+  const [activeIndex, setActiveIndex] = useState();
+  const [suggestionsState, setSuggestionsState] = useState({
+    status: "idle",
+    items: [],
+  });
+  const trimmedValue = value.trim();
+  const debouncedValue = useDebounce(trimmedValue, 300);
+  const selectedUserName = selectedUser?.name;
+  const items = suggestionsState.items;
+  const activeSuggestion =
+    activeIndex === undefined ? undefined : items[activeIndex];
+  const optionId =
+    activeIndex === undefined ? undefined : `${listboxId}-option-${activeIndex}`;
+
+  useEffect(() => {
+    if (
+      debouncedValue !== trimmedValue ||
+      debouncedValue === "" ||
+      selectedUserName === debouncedValue // [!code highlight]
+    ) {
+      // Do not reopen the list right after selecting the same value.
+      setSuggestionsState({ status: "idle", items: [] });
+      setIsOpen(false);
+      setActiveIndex(undefined);
+      return;
+    }
+
+    const controller = new AbortController(); // [!code highlight]
+
+    const loadSuggestions = async () => {
+      setSuggestionsState({ status: "loading", items: [] });
+      setIsOpen(true);
+      setActiveIndex(undefined);
+
+      try {
+        const response = await fetch(
+          `/api/users/suggest?q=${encodeURIComponent(debouncedValue)}`,
+          { signal: controller.signal }, // [!code highlight]
+        );
+
+        if (!response.ok) {
+          throw new Error("추천 목록을 불러오지 못했습니다.");
+        }
+
+        const items = await response.json();
+
+        setSuggestionsState({ status: "success", items });
+        setIsOpen(true);
+        setActiveIndex(items.length > 0 ? 0 : undefined);
+      } catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError") {
+          return;
+        }
+
+        setSuggestionsState({
+          status: "error",
+          items: [],
+          message: "추천 목록을 불러오지 못했습니다.",
+        });
+        setIsOpen(true);
+        setActiveIndex(undefined);
+      }
+    };
+
+    void loadSuggestions();
+
+    return () => {
+      controller.abort(); // [!code highlight]
+    };
+  }, [debouncedValue, selectedUserName, trimmedValue]);
+
+  useEffect(() => {
+    // Close the list without clearing the input value.
+    // ...
+  }, []);
+
+  const selectSuggestion = (suggestion) => {
+    setValue(suggestion.name);
+    setSelectedUser(suggestion);
+    setIsOpen(false);
+    setActiveIndex(undefined);
+  };
+
+  return (
+    <section>
+      <div ref={rootRef}>
+        <label htmlFor={inputId}>사용자</label>
+        <input
+          id={inputId}
+          role="combobox"
+          aria-autocomplete="list"
+          aria-controls={listboxId} // [!code highlight]
+          aria-expanded={isOpen}
+          aria-activedescendant={optionId} // [!code highlight]
+          autoComplete="off"
+          value={value}
+          onChange={(event) => {
+            const nextValue = event.target.value;
+
+            setValue(nextValue);
+            setSelectedUser(undefined);
+            setIsOpen(nextValue.trim() !== "");
+          }}
+          onKeyDown={(event) => {
+            if (event.key === "ArrowDown") {
+              event.preventDefault();
+              setIsOpen(true);
+              setActiveIndex((index) =>
+                getNextIndex(index, items.length, 1),
+              );
+            }
+
+            if (event.key === "ArrowUp") {
+              event.preventDefault();
+              setIsOpen(true);
+              setActiveIndex((index) =>
+                getNextIndex(index, items.length, -1),
+              );
+            }
+
+            if (event.key === "Enter" && isOpen && activeSuggestion) {
+              event.preventDefault();
+              selectSuggestion(activeSuggestion);
+            }
+
+            if (event.key === "Escape" && isOpen) {
+              event.preventDefault();
+              setIsOpen(false);
+              setActiveIndex(undefined);
+            }
+          }}
+        />
+
+        {isOpen && (
+          <ul id={listboxId} role="listbox">
+            {/* Render loading, error, and empty states separately. */}
+            {/* ... */}
+
+            {suggestionsState.status === "success" &&
+              items.map((suggestion, index) => (
+                <li
+                  id={`${listboxId}-option-${index}`}
+                  key={suggestion.id}
+                  role="option"
+                  aria-selected={index === activeIndex} // [!code highlight]
+                  onMouseDown={(event) => {
+                    event.preventDefault();
+                    selectSuggestion(suggestion);
+                  }}
+                >
+                  <strong>{suggestion.name}</strong>
+                  <span>{suggestion.email}</span>
+                </li>
+              ))}
+          </ul>
+        )}
+      </div>
+    </section>
+  );
+};
+```
+
+## 실수 포인트
+
+- 입력값과 선택값을 같은 state로만 처리하면 다시 타이핑할 때 이전 선택이 남는다.
+- 이전 요청을 취소하지 않으면 느린 응답이 최신 목록을 덮어쓴다.
+- `loading`, `error`, `empty`를 섞으면 실패와 결과 없음이 같은 상태가 된다.
+- 방향키로 이동한 항목은 DOM focus를 옮기지 말고 `aria-activedescendant`로 알려준다.
+- 선택된 값과 input 값이 같으면 선택 직후 닫힌 목록이 다시 열릴 수 있다.
+- 닫기는 목록 상태만 바꾸고 input 값은 유지한다.
+
+## 참고
+
+- [WAI-ARIA Combobox Pattern](https://www.w3.org/WAI/ARIA/apg/patterns/combobox/)

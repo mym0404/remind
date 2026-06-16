@@ -1,13 +1,7 @@
 :root {
   color: #17202a;
   background: #f6f7f9;
-  font-family:
-    Inter,
-    system-ui,
-    -apple-system,
-    BlinkMacSystemFont,
-    "Segoe UI",
-    sans-serif;
+  font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
 * {
@@ -18,7 +12,10 @@ body {
   margin: 0;
 }
 
-button, input, select, textarea {
+button,
+input,
+select,
+textarea {
   font: inherit;
 }
 
@@ -59,7 +56,9 @@ label {
   gap: 6px;
 }
 
-input, select, textarea {
+input,
+select,
+textarea {
   width: 100%;
   max-width: 420px;
   padding: 8px 10px;
@@ -84,17 +83,27 @@ ul {
   padding-left: 20px;
 }
 
-.workspace {
-  height: 80vh;
+body {
+  margin: 0;
+}
+
+.app-shell {
+  min-height: 100vh;
   display: grid;
   grid-template-rows: auto 1fr;
 }
 
-.workspace-body {
-  display: grid;
-  grid-template-columns: 220px 1fr;
+.app-header,
+.panel-header {
+  padding: 16px;
+  border-bottom: 1px solid #d8dee8;
 }
 
-.message-list {
+.content-panel {
+  display: grid;
+  grid-template-rows: auto 1fr;
+}
+
+.panel-body {
   padding: 16px;
 }

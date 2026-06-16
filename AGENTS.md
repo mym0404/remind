@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-React live coding practice와 문제별 해답 문서를 함께 두는 Rspress 문서 사이트다. 해답 문서, 기준 문서, practice package가 분리되어 있다.
+React live coding practice, React 개념 문서, 문제별 해답 문서를 함께 두는 Rspress 문서 사이트다. 개념 문서, 해답 문서, 기준 문서, practice package가 분리되어 있다.
 
 ## Tech Stack
 
@@ -19,8 +19,10 @@ AGENTS.md                  # repo-local agent router
 .mise.toml                 # Node/pnpm version pin
 docs/
   index.mdx                # 홈 route이자 첫 문서
+  concepts/                # React 개념 MDX 문서 소스
   sections/                # practice별 해답 MDX 문서 소스
 practices/                 # CoderPad형 React + TypeScript practice packages
+references/concepts.md     # 개념 문서 목록과 검증 기준
 references/sections.md     # 해답 문서 목록과 검증 기준
 public/og-image.png        # README와 Open Graph 용도 이미지
 rspress.config.ts          # Rspress root, base, sidebar, search, llms 설정
@@ -29,7 +31,7 @@ scripts/validate-codeblocks.mjs # MDX 코드블록 재귀 파싱 검증
 
 ## Runtime And Architecture
 
-Rspress는 `docs/`를 문서 root로 읽고 conventional route를 만든다. `docs/sections/*.mdx`는 React 개념 사전이 아니라 practice별 해답 페이지다. 자세한 구조와 routing 기준은 `.agents/knowledge/architecture.md`를 먼저 확인한다.
+Rspress는 `docs/`를 문서 root로 읽고 conventional route를 만든다. `docs/concepts/*.mdx`는 React 개념 페이지이고, `docs/sections/*.mdx`는 practice별 해답 페이지다. 자세한 구조와 routing 기준은 `.agents/knowledge/architecture.md`를 먼저 확인한다.
 
 ## UI And Assets
 

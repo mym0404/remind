@@ -1,0 +1,230 @@
+# IntersectionObserver
+
+## 언제 쓰나
+
+`IntersectionObserver`는 element가 viewport나 scroll container 안에 들어왔는지 감지할 때 쓴다. `scroll event`를 직접 듣고 매번 좌표를 계산하는 방식보다 단순하고, 브라우저가 관찰 시점을 조절할 수 있다.
+
+주로 infinite scroll sentinel, 이미지 lazy loading, 노출 감지, 화면 밖으로 나간 popover trigger 처리에 쓴다.
+
+`root`는 기준 영역, `rootMargin`은 기준 영역 보정값, `threshold`는 callback이 실행될 노출 비율이다.
+
+## 바로 쓰는 코드
+
+observer 생성과 cleanup은 hook으로 모은다. DOM node가 조건부 렌더링으로 늦게 생기거나 바뀐다면 callback ref나 별도 state로 다시 observe한다.
+
+```tsx title="useIntersectionObserver.ts"
+const useIntersectionObserver = <T extends Element>({
+  enabled = true,
+  onChange,
+  rootMargin = "0px",
+  rootRef,
+  targetRef,
+  threshold = 0,
+}) => {
+  const onChangeRef = useRef(onChange);
+
+  useEffect(() => {
+    // Keep the latest callback without recreating the observer.
+    onChangeRef.current = onChange; // [!code highlight]
+  }, [onChange]);
+
+  useEffect(() => {
+    const target = targetRef.current;
+
+    if (!enabled || !target) {
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry) {
+          onChangeRef.current(entry);
+        }
+      },
+      {
+        // null means the viewport.
+        root: rootRef?.current ?? null, // [!code highlight]
+        rootMargin,
+        threshold,
+      },
+    );
+
+    observer.observe(target); // [!code highlight]
+
+    return () => {
+      observer.disconnect(); // [!code highlight]
+    };
+  }, [enabled, rootMargin, rootRef, targetRef, threshold]);
+};
+```
+
+infinite scroll은 목록 끝 sentinel만 관찰한다. 중복 요청 방지는 state보다 ref가 빠르고 확실하다.
+
+```tsx title="ProductList.tsx"
+const fetchProductsPage = async ({ page, signal }) => {
+  // ...
+};
+
+const ProductList = () => {
+  const rootRef = useRef(null);
+  const sentinelRef = useRef(null);
+  const abortControllerRef = useRef(undefined);
+  const hasMoreRef = useRef(true);
+  const isLoadingRef = useRef(false);
+  const nextPageRef = useRef(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
+  const [products, setProducts] = useState([]);
+
+  const loadNextPage = async () => {
+    // Guard before the async gap.
+    if (isLoadingRef.current || !hasMoreRef.current) { // [!code highlight]
+      return;
+    }
+
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+    isLoadingRef.current = true;
+    setIsLoading(true);
+
+    try {
+      const page = await fetchProductsPage({
+        page: nextPageRef.current,
+        signal: controller.signal,
+      });
+
+      setProducts((current) => [...current, ...page.items]);
+      nextPageRef.current += 1;
+      hasMoreRef.current = page.hasMore;
+      setHasMore(page.hasMore);
+    } finally {
+      if (!controller.signal.aborted) {
+        isLoadingRef.current = false;
+        setIsLoading(false);
+      }
+    }
+  };
+
+  useIntersectionObserver({
+    enabled: hasMore,
+    onChange: (entry) => {
+      if (entry.isIntersecting) {
+        void loadNextPage(); // [!code highlight]
+      }
+    },
+    // Start before the sentinel is actually visible.
+    rootMargin: "160px 0px", // [!code highlight]
+    rootRef,
+    targetRef: sentinelRef,
+    threshold: 0,
+  });
+
+  useEffect(() => {
+    // Do not apply a response after unmount.
+    return () => abortControllerRef.current?.abort();
+  }, []);
+
+  const sentinel = hasMore ? <div ref={sentinelRef} aria-hidden="true" /> : undefined; // [!code highlight]
+
+  return (
+    <section>
+      <div ref={rootRef} style={{ maxHeight: 360, overflowY: "auto" }}>
+        <ul>
+          {products.map((product) => (
+            <li key={product.id}>{product.name}</li>
+          ))}
+        </ul>
+
+        {sentinel}
+      </div>
+
+      {isLoading ? <p>불러오는 중입니다.</p> : undefined}
+    </section>
+  );
+};
+```
+
+이미지는 native `loading="lazy"`보다 이른 fetch나 analytics가 필요할 때만 직접 관찰한다.
+
+```tsx title="LazyProfileImage.tsx"
+const LazyProfileImage = ({
+  alt,
+  src,
+}) => {
+  const imageRef = useRef(null);
+  const [shouldLoad, setShouldLoad] = useState(false);
+
+  useIntersectionObserver({
+    enabled: !shouldLoad,
+    onChange: (entry) => {
+      if (entry.isIntersecting) {
+        setShouldLoad(true); // [!code highlight]
+      }
+    },
+    // Fetch before the image enters the viewport.
+    rootMargin: "320px 0px", // [!code highlight]
+    targetRef: imageRef,
+    threshold: 0,
+  });
+
+  return <img ref={imageRef} src={shouldLoad ? src : undefined} alt={alt} />;
+};
+```
+
+popover는 trigger가 화면 밖으로 나갔을 때 닫거나 위치를 다시 계산한다.
+
+```tsx title="AccountMenu.tsx"
+const AccountMenu = () => {
+  const triggerRef = useRef(null);
+  const [isOpen, setIsOpen] = useState(false);
+
+  useIntersectionObserver({
+    enabled: isOpen,
+    onChange: (entry) => {
+      if (!entry.isIntersecting) {
+        setIsOpen(false); // [!code highlight]
+      }
+    },
+    targetRef: triggerRef,
+    threshold: 0,
+  });
+
+  return (
+    <div>
+      <button
+        ref={triggerRef}
+        type="button"
+        aria-expanded={isOpen}
+        onClick={() => setIsOpen((current) => !current)}
+      >
+        계정
+      </button>
+
+      {isOpen ? (
+        <div>
+          {/* ... */}
+        </div>
+      ) : undefined}
+    </div>
+  );
+};
+```
+
+## 실수 포인트
+
+:::warning
+`IntersectionObserver` callback은 state가 바뀐 즉시 동기적으로 실행되는 이벤트 핸들러가 아니다. 관찰 결과를 React state와 엮을 때는 중복 요청, stale closure, unmount 이후 응답을 먼저 막아야 한다.
+:::
+
+- `root`가 scroll container라면 container element를 넘긴다.
+- `rootMargin` 양수는 더 일찍, 음수는 더 안쪽에서 감지한다.
+- `threshold` 배열은 callback 빈도를 늘리므로 단계별 analytics에만 쓴다.
+- 관찰 target이 바뀌면 기존 observer가 새 node를 자동으로 따라가지 않는다.
+- infinite scroll은 `isLoading`과 `hasMore`를 ref로도 막는다.
+- fetch를 함께 쓴다면 unmount 때 `AbortController`로 진행 중인 요청도 중단한다.
+- `threshold` 배열은 렌더마다 새로 만들지 않는다.
+- popover trigger가 화면 밖으로 나가면 재배치와 닫기 중 하나를 정한다.
+
+## 참고
+
+- [MDN IntersectionObserver](https://developer.mozilla.org/en-US/docs/Web/API/IntersectionObserver)

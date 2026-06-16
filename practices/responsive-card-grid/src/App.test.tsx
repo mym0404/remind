@@ -1,18 +1,26 @@
-import fs from "node:fs";
-import path from "node:path";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { App } from "./App";
 
-const css = fs.readFileSync(path.join(process.cwd(), "src", "style.css"), "utf8");
+const css = readFileSync(resolve(__dirname, "style.css"), "utf8");
 
 describe("Responsive Card Grid practice", () => {
-  it("renders cards inside the grid container", () => {
+  it("renders the card grid contract", () => {
     render(<App />);
-    expect(screen.getByText("React").parentElement).toHaveClass("card-grid");
+    expect(screen.getByText("Dashboard").closest(".card-grid")).toBeInTheDocument();
   });
 
-  it("uses an intrinsic responsive grid", () => {
-    expect(css).toMatch(/grid-template-columns:\s*repeat\(auto-(fit|fill),\s*minmax\(min\(100%,\s*220px\),\s*1fr\)\)/);
+  it("uses CSS Grid for the card container", () => {
+    expect(css).toMatch(/\.card-grid\s*{[^}]*display:\s*grid/s);
+  });
+
+  it("uses repeat with auto-fit or auto-fill", () => {
+    expect(css).toMatch(/grid-template-columns:\s*repeat\(auto-(fit|fill),/s);
+  });
+
+  it("uses minmax to keep a practical card minimum width", () => {
+    expect(css).toMatch(/minmax\(\s*220px\s*,\s*1fr\s*\)/s);
   });
 });
