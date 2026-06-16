@@ -43,4 +43,15 @@ describe("Reducer Actions practice", () => {
 
     expect(screen.getByRole("checkbox", { name: "테스트 작성" })).toBeChecked();
   });
+
+  it("removes a todo from the list", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.type(screen.getByLabelText("할 일"), "테스트 작성");
+    await user.click(screen.getByRole("button", { name: "추가" }));
+    await user.click(screen.getByRole("button", { name: "테스트 작성 삭제" }));
+
+    expect(screen.queryByText("테스트 작성")).not.toBeInTheDocument();
+  });
 });

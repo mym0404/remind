@@ -34,6 +34,17 @@ describe("Form Validation Errors practice", () => {
     expect(screen.getByLabelText("이메일")).toHaveAccessibleDescription("이메일을 입력하세요.");
   });
 
+  it("marks invalid fields with aria-invalid", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.type(screen.getByLabelText("이름"), "민지");
+    await user.click(screen.getByRole("button", { name: "제출" }));
+
+    expect(screen.getByLabelText("이름")).toHaveAttribute("aria-invalid", "false");
+    expect(screen.getByLabelText("이메일")).toHaveAttribute("aria-invalid", "true");
+  });
+
   it("moves focus to the first invalid field", async () => {
     const user = userEvent.setup();
     render(<App />);
@@ -43,14 +54,19 @@ describe("Form Validation Errors practice", () => {
     expect(screen.getByLabelText("이름")).toHaveFocus();
   });
 
-  it("submits successfully when values are valid", async () => {
+  it("clears errors when submitted values become valid", async () => {
     const user = userEvent.setup();
     render(<App />);
+
+    await user.click(screen.getByRole("button", { name: "제출" }));
+    expect(screen.getByText("이름을 입력하세요.")).toBeInTheDocument();
+    expect(screen.getByText("이메일을 입력하세요.")).toBeInTheDocument();
 
     await user.type(screen.getByLabelText("이름"), "민지");
     await user.type(screen.getByLabelText("이메일"), "minji@example.com");
     await user.click(screen.getByRole("button", { name: "제출" }));
 
-    expect(screen.getByRole("status")).toHaveTextContent("제출 완료");
+    expect(screen.queryByText("이름을 입력하세요.")).not.toBeInTheDocument();
+    expect(screen.queryByText("이메일을 입력하세요.")).not.toBeInTheDocument();
   });
 });

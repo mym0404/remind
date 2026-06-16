@@ -10,6 +10,7 @@ describe("Scrollable Panel Layout practice", () => {
   it("renders fixed shell and internal panel areas", () => {
     render(<App />);
     expect(screen.getByText("Scrollable Panel Layout").closest(".app-shell")).toBeInTheDocument();
+    expect(screen.getByText("Inbox").closest(".content-panel")).toBeInTheDocument();
     expect(screen.getByText("Message 30").closest(".panel-body")).toBeInTheDocument();
   });
 
@@ -17,15 +18,22 @@ describe("Scrollable Panel Layout practice", () => {
     expect(css).toMatch(/\.app-shell\s*{[^}]*height:\s*100vh/s);
   });
 
-  it("uses minmax(0, 1fr) for the scrollable grid row", () => {
-    expect(css).toMatch(/grid-template-rows:[^;]*minmax\(\s*0\s*,\s*1fr\s*\)/s);
+  it("uses minmax(0, 1fr) for flexible grid rows", () => {
+    expect(css).toMatch(/\.app-shell\s*{[^}]*grid-template-rows:[^;]*minmax\(\s*0\s*,\s*1fr\s*\)/s);
+    expect(css).toMatch(/\.content-panel\s*{[^}]*grid-template-rows:[^;]*minmax\(\s*0\s*,\s*1fr\s*\)/s);
   });
 
   it("puts overflow only on the panel body", () => {
     expect(css).toMatch(/\.panel-body\s*{[^}]*overflow:\s*auto/s);
   });
 
-  it("prevents body-level scroll leakage", () => {
+  it("allows the panel body to shrink inside the grid", () => {
+    expect(css).toMatch(/\.content-panel\s*{[^}]*min-height:\s*0/s);
+    expect(css).toMatch(/\.panel-body\s*{[^}]*min-height:\s*0/s);
+  });
+
+  it("prevents page-level scroll leakage", () => {
+    expect(css).toMatch(/html,\s*body,\s*#root\s*{[^}]*height:\s*100%/s);
     expect(css).toMatch(/body\s*{[^}]*overflow:\s*hidden/s);
   });
 });

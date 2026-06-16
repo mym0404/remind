@@ -8,6 +8,10 @@ describe("Deferred Filter List practice", () => {
     expect(filterItems(["React", "Router"], "  rout ")).toEqual(["Router"]);
   });
 
+  it("returns every item for blank query", () => {
+    expect(filterItems(["React", "Router"], "   ")).toEqual(["React", "Router"]);
+  });
+
   it("updates input value immediately", async () => {
     const user = userEvent.setup();
     render(<App />);

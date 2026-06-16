@@ -7,8 +7,9 @@
 ## 요구사항
 
 - CSS Grid를 쓴다.
-- auto-fit 또는 auto-fill과 minmax를 쓴다.
-- 카드 최소 너비를 고정하고 남는 공간을 분배한다.
+- 카드들은 `.card-grid` 안에 렌더링한다.
+- `.card-grid`에 `repeat(auto-fit, minmax(220px, 1fr))` 또는 `repeat(auto-fill, minmax(220px, 1fr))`를 쓴다.
+- 고정 3열 grid를 쓰지 않는다.
 
 ## 채점 기준
 

@@ -5,16 +5,25 @@ export const getNextItems = (page: number, pageSize: number) =>
 
 export const canLoadNext = (loading: boolean, hasMore: boolean) => !loading && hasMore;
 
+export const useIntersectionObserver = (
+  targetRef: React.RefObject<Element | null>,
+  _onIntersect: () => void,
+) => {
+  useEffect(() => {
+    if (!targetRef.current) return;
+    const observer = new IntersectionObserver(() => undefined);
+    observer.observe(targetRef.current);
+    return () => observer.disconnect();
+  }, [targetRef]);
+};
+
 export const App = () => {
   const [items, setItems] = useState(() => getNextItems(0, 5));
   const sentinelRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (!sentinelRef.current) return;
-    const observer = new IntersectionObserver(() => undefined);
-    observer.observe(sentinelRef.current);
-    return () => observer.disconnect();
-  }, []);
+  useIntersectionObserver(sentinelRef, () => {
+    setItems((currentItems) => [...currentItems, ...getNextItems(1, 5)]);
+  });
 
   return (
     <main className="app">
@@ -23,7 +32,6 @@ export const App = () => {
         <h1>Infinite Scroll Sentinel</h1>
         <ul>{items.map((item) => <li key={item}>{item}</li>)}</ul>
         <div ref={sentinelRef} data-testid="sentinel" />
-        <button type="button" onClick={() => setItems([...items, ...getNextItems(1, 5)])}>더 보기</button>
       </section>
     </main>
   );

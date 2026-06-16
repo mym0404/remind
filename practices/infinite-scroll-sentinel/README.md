@@ -2,12 +2,15 @@
 
 ## 목표
 
-IntersectionObserver로 sentinel을 관찰하고 다음 page를 append한다.
+`useIntersectionObserver` hook으로 sentinel을 관찰하고 다음 page를 append한다.
 
 ## 요구사항
 
-- sentinel ref를 observe한다.
-- loading 중 중복 호출을 막는다.
+- `useIntersectionObserver` named hook을 구현한다.
+- hook은 sentinel ref를 observe한다.
+- hook callback은 `isIntersecting`이 `true`일 때만 실행한다.
+- App은 hook callback으로 다음 page를 append한다.
+- loading 중 중복 append를 막는다.
 - unmount 시 observer를 disconnect한다.
 
 ## 채점 기준

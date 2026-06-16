@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it } from "vitest";
-import { App, readStorageValue } from "./App";
+import { App, readStorageValue, useLocalStorage } from "./App";
 
 describe("Local Storage Hook practice", () => {
   beforeEach(() => {
@@ -33,6 +33,28 @@ describe("Local Storage Hook practice", () => {
 
     expect(localStorage.getItem("practice-name")).toBe(JSON.stringify("지훈"));
     expect(screen.getByRole("status")).toHaveTextContent("지훈");
+  });
+
+  it("supports functional updates and writes the calculated value", async () => {
+    const user = userEvent.setup();
+
+    const Counter = () => {
+      const [count, setCount] = useLocalStorage("practice-count", 0);
+
+      return (
+        <button type="button" onClick={() => setCount((current) => current + 1)}>
+          {count}
+        </button>
+      );
+    };
+
+    render(<Counter />);
+
+    await user.click(screen.getByRole("button", { name: "0" }));
+    await user.click(screen.getByRole("button", { name: "1" }));
+
+    expect(screen.getByRole("button", { name: "2" })).toBeInTheDocument();
+    expect(localStorage.getItem("practice-count")).toBe(JSON.stringify(2));
   });
 
   it("resets state and storage together", async () => {

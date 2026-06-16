@@ -8,7 +8,9 @@
 
 - input value는 transition에 넣지 않는다.
 - useDeferredValue나 useTransition으로 목록 갱신을 분리한다.
+- 무거운 필터링은 지연된 검색어로 실행한다.
 - pending UI를 좁은 범위에만 보여준다.
+- `filterItems` named export는 검색어를 trim하고 대소문자 구분 없이 필터링한다.
 
 ## 채점 기준
 

@@ -7,6 +7,9 @@ flat path 배열을 임의 깊이의 folder/file tree로 바꾼다.
 ## 요구사항
 
 - 폴더와 파일 node를 구분한다.
+- 같은 폴더를 공유하는 path는 하나의 folder node로 합친다.
+- 중복 path는 한 번만 반영한다.
+- 임의 깊이의 nested path를 처리한다.
 - 폴더를 파일보다 먼저 정렬한다.
 - 같은 depth에서는 대소문자 무시 알파벳 순으로 정렬한다.
 

@@ -1,6 +1,7 @@
 import { render, screen } from "@testing-library/react";
+import { act, useRef } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { App, canLoadNext, getNextItems } from "./App";
+import { App, canLoadNext, getNextItems, useIntersectionObserver } from "./App";
 
 class MockIntersectionObserver {
   static instances: MockIntersectionObserver[] = [];
@@ -16,10 +17,17 @@ class MockIntersectionObserver {
   takeRecords = vi.fn(() => []);
 }
 
+const runPendingLoad = () => {
+  act(() => {
+    vi.runOnlyPendingTimers();
+  });
+};
+
 describe("Infinite Scroll Sentinel practice", () => {
   beforeEach(() => {
     MockIntersectionObserver.instances = [];
     vi.stubGlobal("IntersectionObserver", MockIntersectionObserver);
+    vi.useFakeTimers();
   });
 
   it("creates deterministic page items", () => {
@@ -32,15 +40,44 @@ describe("Infinite Scroll Sentinel practice", () => {
     expect(canLoadNext(false, false)).toBe(false);
   });
 
-  it("observes the sentinel on mount", () => {
+  it("observes the sentinel ref on mount", () => {
     render(<App />);
     expect(MockIntersectionObserver.instances[0].observe).toHaveBeenCalledWith(screen.getByTestId("sentinel"));
   });
 
-  it("appends the next page when the sentinel intersects", () => {
+  it("calls the hook callback only when the sentinel intersects", () => {
+    const onIntersect = vi.fn();
+
+    const HookProbe = () => {
+      const sentinelRef = useRef<HTMLDivElement>(null);
+      useIntersectionObserver({ sentinelRef, onIntersect });
+
+      return <div ref={sentinelRef} data-testid="probe" />;
+    };
+
+    render(<HookProbe />);
+    MockIntersectionObserver.instances[0].trigger(false);
+    MockIntersectionObserver.instances[0].trigger(true);
+
+    expect(onIntersect).toHaveBeenCalledTimes(1);
+  });
+
+  it("appends the next page when the sentinel intersects through the hook", () => {
     render(<App />);
     MockIntersectionObserver.instances[0].trigger(true);
+    runPendingLoad();
+
     expect(screen.getByText("Item 10")).toBeInTheDocument();
+  });
+
+  it("does not append duplicate pages while loading", () => {
+    render(<App />);
+    MockIntersectionObserver.instances[0].trigger(true);
+    MockIntersectionObserver.instances[0].trigger(true);
+    runPendingLoad();
+
+    expect(screen.getAllByRole("listitem")).toHaveLength(10);
+    expect(screen.queryByText("Item 15")).not.toBeInTheDocument();
   });
 
   it("disconnects the observer on unmount", () => {

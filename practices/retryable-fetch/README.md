@@ -9,6 +9,7 @@
 - 실패 시 error message와 retry 버튼을 렌더링한다.
 - retry는 마지막 요청 조건을 유지한다.
 - 재시도 중에는 loading 상태를 다시 보여준다.
+- 성공한 재시도는 error message를 지우고 report data를 렌더링한다.
 
 ## 채점 기준
 

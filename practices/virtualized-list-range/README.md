@@ -6,8 +6,11 @@ scroll 위치와 row 높이로 보이는 구간만 렌더링한다.
 
 ## 요구사항
 
-- getVisibleRange를 구현한다.
-- overscan을 적용한다.
+- `getVisibleRange`를 named export로 구현한다.
+- `scrollTop`, `viewportHeight`, `rowHeight`, `itemCount`, `overscan`으로 렌더링할 range를 계산한다.
+- `start`와 `end`는 list boundary 안으로 clamp한다.
+- range 앞뒤의 offscreen row 높이를 spacer로 렌더링한다.
+- scroll 위치가 바뀌면 렌더링되는 row range도 갱신한다.
 - 전체 row를 한 번에 렌더링하지 않는다.
 
 ## 채점 기준

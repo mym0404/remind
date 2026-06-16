@@ -23,6 +23,10 @@ describe("Popover Positioning practice", () => {
     expect(computePopoverPosition({ top: 20, left: 450, width: 60, height: 30 }, { top: 0, left: 0, width: 120, height: 80 }, { width: 500, height: 500 }).left).toBe(380);
   });
 
+  it("clamps the popover to the viewport left edge", () => {
+    expect(computePopoverPosition({ top: 20, left: -20, width: 60, height: 30 }, { top: 0, left: 0, width: 120, height: 80 }, { width: 500, height: 500 }).left).toBe(0);
+  });
+
   it("opens and closes from the trigger", async () => {
     const user = userEvent.setup();
     render(<App />);
@@ -33,12 +37,21 @@ describe("Popover Positioning practice", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
-  it("closes with Escape and outside click", async () => {
+  it("closes with Escape", async () => {
     const user = userEvent.setup();
     render(<App />);
 
     await user.click(screen.getByRole("button", { name: "필터" }));
     await user.keyboard("{Escape}");
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("closes when clicking outside the popover", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: "필터" }));
+    await user.click(document.body);
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 });

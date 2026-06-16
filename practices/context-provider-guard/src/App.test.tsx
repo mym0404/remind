@@ -18,13 +18,17 @@ describe("Context Provider Guard practice", () => {
     expect(screen.getByRole("button", { name: "light" })).toBeInTheDocument();
   });
 
-  it("toggles theme through context", async () => {
+  it("toggles theme through context between dark and light", async () => {
     const user = userEvent.setup();
     render(<App />);
 
     await user.click(screen.getByRole("button", { name: "테마 변경" }));
 
     expect(screen.getByRole("status")).toHaveTextContent("dark");
+
+    await user.click(screen.getByRole("button", { name: "테마 변경" }));
+
+    expect(screen.getByRole("status")).toHaveTextContent("light");
   });
 
   it("keeps the context value stable across unrelated rerenders", () => {

@@ -2,8 +2,7 @@ import { useDeferredValue, useState } from "react";
 
 export const items = ["React Handbook", "Router Patterns", "Testing Guide", "CSS Layout"];
 
-export const filterItems = (allItems: string[], query: string) =>
-	allItems;
+export const filterItems = (allItems: string[], _query: string) => allItems;
 
 export const App = () => {
   const [query, setQuery] = useState("");

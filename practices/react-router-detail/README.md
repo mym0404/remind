@@ -7,7 +7,10 @@
 ## 요구사항
 
 - React Router Routes를 구성한다.
+- 목록 route(`/`)에서 article 목록을 보여준다.
+- 각 article은 Link로 `/articles/:id` 상세 route로 이동한다.
 - useParams로 id를 읽는다.
+- id 조회 로직은 named export인 `findArticle`로 구현한다.
 - 없는 id는 404 fallback을 보여준다.
 
 ## 채점 기준

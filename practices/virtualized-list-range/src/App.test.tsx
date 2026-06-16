@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { App, getVisibleRange } from "./App";
 
@@ -35,5 +35,20 @@ describe("Virtualized List Range practice", () => {
     render(<App />);
     expect(screen.getByTestId("before-spacer")).toBeInTheDocument();
     expect(screen.getByTestId("after-spacer")).toBeInTheDocument();
+  });
+
+  it("updates the rendered rows when the list scrolls", () => {
+    const { container } = render(<App />);
+    const list = container.querySelector<HTMLElement>('div[style*="overflow: auto"]');
+
+    if (!list) {
+      throw new Error("scroll container not found");
+    }
+
+    fireEvent.scroll(list, { target: { scrollTop: 300 } });
+
+    expect(screen.queryByText("Row 1")).not.toBeInTheDocument();
+    expect(screen.getByText("Row 9")).toBeInTheDocument();
+    expect(screen.getByText("Row 16")).toBeInTheDocument();
   });
 });

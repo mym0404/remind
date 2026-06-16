@@ -24,7 +24,7 @@ export const App = () => {
         <h1>Virtualized List Range</h1>
         <div style={{ height: 120, overflow: "auto" }} onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}>
           <div data-testid="before-spacer" style={{ height: range.beforeHeight }} />
-          {visibleItems.map((item) => <div key={item}>{item}</div>)}
+          {visibleItems.map((item) => <div key={item} style={{ height: 30 }}>{item}</div>)}
           <div data-testid="after-spacer" style={{ height: range.afterHeight }} />
         </div>
       </section>

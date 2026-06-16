@@ -31,6 +31,16 @@ describe("URL Search Filter practice", () => {
     expect(window.location.search).toBe("?q=css");
   });
 
+	it("filters the result list when the input changes", async () => {
+		const user = userEvent.setup();
+		render(<BrowserRouter><App /></BrowserRouter>);
+
+    await user.type(screen.getByLabelText("검색어"), "css");
+
+    expect(screen.getByText("CSS Layout")).toBeInTheDocument();
+    expect(screen.queryByText("React Handbook")).not.toBeInTheDocument();
+  });
+
 	it("removes the query param when the input is cleared", async () => {
 		const user = userEvent.setup();
 		window.history.pushState({}, "", "/?q=react");

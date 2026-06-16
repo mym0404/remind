@@ -10,7 +10,7 @@ export const App = () => {
         <h1>Modal Dialog</h1>
         <button type="button" onClick={() => setOpen(true)}>모달 열기</button>
         {open ? (
-          <div className="modal-backdrop">
+          <div className="modal-backdrop" data-testid="modal-backdrop">
             <section role="dialog" aria-label="초대 확인">
               <p>초대장을 보낼까요?</p>
               <button type="button" onClick={() => setOpen(false)}>닫기</button>

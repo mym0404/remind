@@ -97,3 +97,7 @@ td {
   padding: 8px;
   border-bottom: 1px solid #d8dee8;
 }
+
+thead th {
+  font-weight: 700;
+}

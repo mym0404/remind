@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 
-export const loadReport = async (shouldFail = true) => {
-  if (shouldFail) throw new Error("보고서를 불러오지 못했습니다.");
+export const initialReportRequest = { shouldFail: true };
+
+export const loadReport = async (request = initialReportRequest) => {
+  if (request.shouldFail) throw new Error("보고서를 불러오지 못했습니다.");
   return { title: "주간 리포트" };
 };
 

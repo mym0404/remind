@@ -9,6 +9,7 @@
 - 검색어 변경마다 요청을 보낸다.
 - 최신 요청 id나 AbortController로 stale response를 무시한다.
 - loading 중에도 input은 즉시 갱신된다.
+- 최신 응답 판별 로직은 `shouldApplyResponse` 같은 이름 있는 helper로 드러낸다.
 
 ## 채점 기준
 
