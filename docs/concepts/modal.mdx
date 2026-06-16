@@ -16,46 +16,75 @@
 
 ## 바로 쓰는 코드
 
-```tsx title="ModalCore.tsx"
-const ModalCore = ({ open, onClose, triggerRef }) => {
-  const closeRef = useRef(null);
+Provider가 현재 modal 요청과 focus 복귀 대상을 소유한다. 화면 어디서든 `useModal().openModal()`로 열 수 있다.
+
+```tsx title="ModalProvider.tsx"
+type ModalRequest = { title: string; content: React.ReactNode; trigger?: HTMLElement };
+type ModalContextValue = {
+  openModal: (request: ModalRequest) => void;
+  closeModal: () => void;
+};
+
+const ModalContext = createContext<ModalContextValue | undefined>(undefined);
+
+export const ModalProvider = ({ children }: { children: React.ReactNode }) => {
+  const [modal, setModal] = useState<ModalRequest>();
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const restoreFocusRef = useRef<HTMLElement>();
   const titleId = useId();
 
-  useEffect(() => {
-    if (!open) return;
+  const closeModal = useCallback(() => {
+    setModal(undefined);
+    requestAnimationFrame(() => restoreFocusRef.current?.focus()); // [!code highlight]
+  }, []);
 
-    closeRef.current?.focus();
+  const openModal = useCallback((request: ModalRequest) => {
+    const activeElement = document.activeElement;
+    restoreFocusRef.current = request.trigger ?? (activeElement instanceof HTMLElement ? activeElement : undefined);
+    setModal(request);
+  }, []);
+
+  useEffect(() => {
+    if (!modal) return;
+
+    closeButtonRef.current?.focus(); // [!code highlight]
 
     const handleKeyDown = (event) => {
-      if (event.key === "Escape") onClose();
+      if (event.key === "Escape") closeModal();
     };
 
     window.addEventListener("keydown", handleKeyDown);
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-      requestAnimationFrame(() => triggerRef.current?.focus());
-    };
-  }, [onClose, open, triggerRef]);
+    return () => window.removeEventListener("keydown", handleKeyDown); // [!code highlight]
+  }, [closeModal, modal]);
 
-  if (!open) return undefined;
-
-  const handleBackdropClick = (event) => {
-    if (event.target === event.currentTarget) onClose();
-  };
+  const value = useMemo(() => ({ openModal, closeModal }), [openModal, closeModal]);
 
   return (
-    <div className="backdrop" onClick={handleBackdropClick}>
-      <section aria-labelledby={titleId} aria-modal="true" role="dialog">
-        <h2 id={titleId}>결제 수단 변경</h2>
-        <button ref={closeRef} type="button" onClick={onClose}>닫기</button>
-      </section>
-    </div>
+    <ModalContext.Provider value={value}>
+      {children}
+      {modal ? (
+        <div className="backdrop" onClick={(event) => event.target === event.currentTarget && closeModal()}>
+          <section aria-labelledby={titleId} aria-modal="true" role="dialog">
+            <h2 id={titleId}>{modal.title}</h2>
+            <div>{modal.content}</div>
+            <button ref={closeButtonRef} type="button" onClick={closeModal}>닫기</button>
+          </section>
+        </div>
+      ) : null}
+    </ModalContext.Provider>
   );
+};
+
+export const useModal = () => {
+  const context = useContext(ModalContext);
+  if (context === undefined) throw new Error("useModal must be used within ModalProvider");
+  return context;
 };
 ```
 
 ## 실수 포인트
 
+- modal state를 각 버튼 주변에 흩어 놓으면 focus 복귀와 Escape cleanup이 중복된다.
 - 제목 없는 dialog를 만들지 않는다.
 - dialog 안쪽 클릭을 backdrop click으로 처리하지 않는다.
 - Escape listener를 닫힌 뒤에도 남기지 않는다.
