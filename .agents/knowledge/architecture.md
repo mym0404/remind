@@ -17,7 +17,7 @@ Rspress는 `docs/` 아래 파일 경로로 route를 만든다.
 - `docs/index.mdx`는 `/` route이자 첫 문서다.
 - `docs/concepts/form-basic.mdx`는 `/concepts/form-basic` route다.
 - `docs/concepts/*.mdx`는 React 개념 문서이며 `/concepts/*` route다.
-- `docs/sections/controlled-fields.mdx`는 `/sections/controlled-fields` route다.
+- `docs/sections/form-validation-errors.mdx`는 `/sections/form-validation-errors` route다.
 - `docs/sections/*.mdx`는 practice별 해답 페이지이며 `/sections/*` route다.
 
 ## Sidebar

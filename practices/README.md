@@ -6,9 +6,7 @@
 
 | 패키지 | 중심 개념 |
 |---|---|
-| `controlled-fields` | 여러 입력값을 하나의 form state로 묶고 DOM 문자열을 화면 경계에서 정리한다. |
 | `form-validation-errors` | 제출 시 field별 에러를 만들고 첫 번째 invalid field로 focus를 옮긴다. |
-| `submit-reset-flow` | 비동기 제출 중 중복 제출을 막고 성공 후 reset까지 한 흐름으로 처리한다. |
 | `async-load-states` | 네트워크 요청의 loading, error, data, empty 상태를 분리한다. |
 | `debounced-search` | 입력은 즉시 바꾸고 요청 기준값만 delay 뒤에 갱신한다. |
 | `throttled-input` | 짧은 시간에 몰리는 입력 이벤트를 일정 간격으로 제한한다. |
@@ -34,6 +32,6 @@
 ## 실행
 
 ```bash
-pnpm --filter @remind/practice-controlled-fields dev
-pnpm --filter @remind/practice-controlled-fields test
+pnpm --filter @remind/practice-form-validation-errors dev
+pnpm --filter @remind/practice-form-validation-errors test
 ```

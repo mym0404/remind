@@ -6,18 +6,12 @@
 
 ## 요구사항
 
-- 초기 요청 시 loading을 보여준다.
-- 요청 성공 시 상품 목록을 보여준다.
-- 빈 배열은 empty state로 처리한다.
-- 실패는 error message로 보여준다.
-- 실패 후 loading UI가 남지 않아야 한다.
-
-## 채점 기준
-
-- `pnpm test`가 통과해야 한다.
-- `App`에 test-only mode prop을 추가하지 않는다.
-- `fetchProducts`는 named export로 유지한다.
-- loader 경계나 상태 helper를 통해 loading, success, empty, error 상태를 검증 가능하게 분리한다.
+- 화면이 처음 열리면 상품 요청이 시작되고 loading UI가 보인다.
+- 요청이 성공하면 상품 이름 목록이 화면에 보인다.
+- 요청 결과가 빈 배열이면 empty state 문구가 보인다.
+- 요청이 실패하면 error message가 보이고 loading UI는 사라진다.
+- `fetchProducts`와 `toLoadState` named export로 loader와 상태 변환 결과를 직접 확인할 수 있다.
+- `App` props를 확인하면 테스트 전용 mode prop이 없다.
 
 ## 실행
 

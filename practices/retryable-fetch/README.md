@@ -6,16 +6,11 @@
 
 ## 요구사항
 
-- 실패 시 error message와 retry 버튼을 렌더링한다.
-- retry는 마지막 요청 조건을 유지한다.
-- 재시도 중에는 loading 상태를 다시 보여준다.
-- 성공한 재시도는 error message를 지우고 report data를 렌더링한다.
-
-## 채점 기준
-
-- `pnpm test`가 통과해야 한다.
-- starter는 실행 가능한 얇은 골격만 제공한다.
-- 테스트가 요구하는 사용자 동작과 순수 로직을 직접 구현한다.
+- 요청이 실패하면 error message와 retry 버튼이 보인다.
+- retry 버튼을 누르면 같은 요청 조건으로 loading UI가 다시 보인다.
+- retry가 성공하면 error message가 사라지고 report data가 보인다.
+- retry 중에는 중복 클릭으로 요청 상태가 꼬이지 않는다.
+- `loadReport` named export로 성공과 실패 요청 결과를 직접 확인할 수 있다.
 
 ## 실행
 

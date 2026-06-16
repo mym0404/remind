@@ -6,18 +6,12 @@
 
 ## 요구사항
 
-- `validateForm`을 컴포넌트 밖에서 named export로 구현한다.
-- 제출 시 field별 에러 메시지를 보여준다.
-- invalid field에는 `aria-invalid="true"`를 적용한다.
-- 에러 메시지와 입력을 `aria-describedby`로 연결한다.
-- 제출 시 첫 번째 invalid field에 focus를 보낸다.
-- 유효한 값으로 다시 제출하면 기존 에러를 제거한다.
-
-## 채점 기준
-
-- `pnpm test`가 통과해야 한다.
-- starter는 실행 가능한 얇은 골격만 제공한다.
-- 테스트가 요구하는 사용자 동작, 접근성 속성, 순수 로직을 직접 구현한다.
+- 빈 form을 제출하면 field별 에러 메시지가 보인다.
+- invalid field에는 `aria-invalid="true"`가 적용된다.
+- 에러 메시지 id는 해당 input의 `aria-describedby`와 연결된다.
+- 제출 뒤 focus는 첫 번째 invalid field로 이동한다.
+- 유효한 값으로 다시 제출하면 기존 에러가 사라진다.
+- `validateForm` named export로 field별 에러 결과를 직접 확인할 수 있다.
 
 ## 실행
 

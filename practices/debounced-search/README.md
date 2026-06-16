@@ -6,15 +6,11 @@
 
 ## 요구사항
 
-- useDebounce hook을 만든다.
-- value 변경 시 이전 timer를 cleanup한다.
-- 마지막 입력만 검색에 반영한다.
-
-## 채점 기준
-
-- `pnpm test`가 통과해야 한다.
-- starter는 실행 가능한 얇은 골격만 제공한다.
-- 테스트가 요구하는 사용자 동작과 순수 로직을 직접 구현한다.
+- 검색어를 입력하면 input value는 즉시 바뀐다.
+- delay가 지나기 전에는 검색 결과가 이전 검색어 기준으로 유지된다.
+- 여러 글자를 빠르게 입력하면 마지막 입력만 검색 결과에 반영된다.
+- value가 바뀌거나 컴포넌트가 unmount되면 이전 timer가 정리된다.
+- `useDebounce` hook은 named export로 직접 확인할 수 있다.
 
 ## 실행
 

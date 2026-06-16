@@ -2,20 +2,10 @@
 
 이 파일은 Rspress sidebar에 노출할 practice 해답 페이지 목록이다. 각 제목은 `docs/sections/*.mdx`의 H1과 같아야 한다.
 
-## Controlled Fields
-
-- package: `@remind/practice-controlled-fields`
-- docs: `docs/sections/controlled-fields.mdx`
-- category: Form
 ## Form Validation Errors
 
 - package: `@remind/practice-form-validation-errors`
 - docs: `docs/sections/form-validation-errors.mdx`
-- category: Form
-## Submit Reset Flow
-
-- package: `@remind/practice-submit-reset-flow`
-- docs: `docs/sections/submit-reset-flow.mdx`
 - category: Form
 ## Async Load States
 

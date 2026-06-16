@@ -6,18 +6,11 @@
 
 ## 요구사항
 
-- `useIntersectionObserver` named hook을 구현한다.
-- hook은 sentinel ref를 observe한다.
-- hook callback은 `isIntersecting`이 `true`일 때만 실행한다.
-- App은 hook callback으로 다음 page를 append한다.
-- loading 중 중복 append를 막는다.
-- unmount 시 observer를 disconnect한다.
-
-## 채점 기준
-
-- `pnpm test`가 통과해야 한다.
-- starter는 실행 가능한 얇은 골격만 제공한다.
-- 테스트가 요구하는 사용자 동작과 순수 로직을 직접 구현한다.
+- sentinel이 교차 상태가 되면 다음 page item이 기존 목록 뒤에 붙는다.
+- `isIntersecting`이 `false`이면 append callback이 실행되지 않는다.
+- loading 중 다시 교차해도 중복 append가 일어나지 않는다.
+- 컴포넌트가 unmount되면 observer가 disconnect된다.
+- `useIntersectionObserver` named hook으로 observe와 cleanup 동작을 직접 확인할 수 있다.
 
 ## 실행
 

@@ -4,16 +4,14 @@
 
 ## 커버리지 요약
 
-- practice package: 24개
+- practice package: 22개
 - 기준: 얇은 starter, 세분화된 테스트, 문제별 해답 문서
 
 ## 개념 매트릭스
 
 | Practice | 검증 개념 |
 |---|---|
-| `controlled-fields` | 이름, 이메일, 역할, 약관 동의를 하나의 state object로 관리한다., checkbox와 select도 controlled component로 다룬다., 입력값이 바뀔 때 미리보기 문장이 함께 갱신된다. |
 | `form-validation-errors` | validation 함수를 컴포넌트 밖에 둔다., 에러 메시지와 입력을 aria-describedby로 연결한다., 첫 번째 invalid field에 focus를 보낸다. |
-| `submit-reset-flow` | 제출 중 submit button을 disabled 처리한다., 성공 메시지를 보여준다., 초기화 버튼은 입력값과 상태 메시지를 함께 되돌린다. |
 | `async-load-states` | 초기 요청 시 loading을 보여준다., 빈 배열은 empty state로 처리한다., 실패는 error message로 보여준다. |
 | `debounced-search` | useDebounce hook을 만든다., value 변경 시 이전 timer를 cleanup한다., 마지막 입력만 검색에 반영한다. |
 | `throttled-input` | useThrottle hook을 만든다., interval 안에서는 값을 즉시 바꾸지 않는다., 마지막 입력은 interval 뒤에 반영한다. |

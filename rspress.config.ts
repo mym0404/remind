@@ -119,7 +119,7 @@ export default defineConfig({
     nav: [
       { text: "홈", link: "/" },
       { text: "개념", link: "/concepts/form-basic" },
-      { text: "해답집", link: "/sections/controlled-fields" },
+      { text: "해답집", link: "/sections/form-validation-errors" },
     ],
     sidebar: {
       "/": [
