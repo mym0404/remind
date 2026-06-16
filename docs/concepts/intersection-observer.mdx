@@ -1,5 +1,124 @@
 # IntersectionObserver
 
+## API reference
+
+`IntersectionObserver`는 관찰할 element와 기준 영역이 얼마나 겹치는지 비동기로 알려준다. 생성자는 callback과 options를 받는다.
+
+```tsx title="constructor.tsx"
+const callback: IntersectionObserverCallback = (entries, observer) => {
+  entries.forEach((entry) => {
+    if (entry.isIntersecting) {
+      observer.unobserve(entry.target);
+    }
+  });
+};
+
+const options: IntersectionObserverInit = {
+  root: document.querySelector("#scroll-root"),
+  rootMargin: "160px 0px",
+  threshold: [0, 0.5, 1],
+};
+
+const observer = new IntersectionObserver(callback, options);
+```
+
+- `callback`: 관찰 결과가 생기면 실행된다. 첫 번째 인자는 `IntersectionObserverEntry[]`, 두 번째 인자는 현재 observer다.
+- `options`: 관찰 기준을 정한다. 생략하면 viewport 기준, `rootMargin: "0px"`, `threshold: 0`으로 동작한다.
+
+`IntersectionObserverEntry`는 callback이 받은 한 target의 현재 상태다.
+
+```tsx title="entry-fields.tsx"
+const readEntry = (entry: IntersectionObserverEntry) => ({
+  target: entry.target,
+  isIntersecting: entry.isIntersecting,
+  intersectionRatio: entry.intersectionRatio,
+  boundingClientRect: entry.boundingClientRect,
+  intersectionRect: entry.intersectionRect,
+  rootBounds: entry.rootBounds,
+  time: entry.time,
+});
+```
+
+- `target`: 관찰 중인 element다.
+- `isIntersecting`: target이 기준 영역과 겹치면 `true`다.
+- `intersectionRatio`: target 면적 중 겹친 비율이다. 값은 `0`부터 `1`까지다.
+- `boundingClientRect`: target의 현재 사각형이다.
+- `intersectionRect`: 실제로 겹친 영역의 사각형이다.
+- `rootBounds`: 기준 영역의 사각형이다. viewport 기준인데 계산할 수 없으면 `null`일 수 있다.
+- `time`: 관찰 결과가 기록된 시각이다.
+
+observer instance는 target 등록과 해제를 직접 관리한다.
+
+```tsx title="observer-methods.tsx"
+const replaceObservedTarget = ({
+  nextTarget,
+  observer,
+  previousTarget,
+}: {
+  nextTarget: Element;
+  observer: IntersectionObserver;
+  previousTarget?: Element;
+}) => {
+  if (previousTarget) {
+    observer.unobserve(previousTarget);
+  }
+
+  observer.observe(nextTarget);
+};
+
+const flushAndStop = (observer: IntersectionObserver) => {
+  const entries = observer.takeRecords();
+  observer.disconnect();
+
+  return entries;
+};
+```
+
+- `observe(target)`: target 관찰을 시작한다.
+- `unobserve(target)`: 특정 target만 관찰 대상에서 뺀다.
+- `disconnect()`: observer가 보던 모든 target을 해제한다.
+- `takeRecords()`: 아직 callback으로 전달되지 않은 entry를 배열로 꺼낸다.
+
+React에서는 effect cleanup에서 observer와 함께 진행 중인 부수 효과를 정리한다.
+
+```tsx title="cleanup.tsx"
+const useVisibility = (targetRef: RefObject<Element>) => {
+  useEffect(() => {
+    const target = targetRef.current;
+
+    if (!target) {
+      return;
+    }
+
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry?.isIntersecting) {
+        // ...
+      }
+    });
+
+    observer.observe(target);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [targetRef]);
+};
+```
+
+`root`, `rootMargin`, `threshold`는 감지 기준을 바꾸는 options다.
+
+```tsx title="options.tsx"
+const options: IntersectionObserverInit = {
+  root: document.querySelector("#scroll-root"),
+  rootMargin: "200px 0px -40px",
+  threshold: 0.25,
+};
+```
+
+- `root`: 기준 영역이다. `null`이나 생략이면 viewport를 기준으로 삼는다.
+- `rootMargin`: 기준 영역에 더하거나 뺄 여백이다. CSS margin 문법처럼 `"10px 0px"` 형태로 쓴다.
+- `threshold`: callback을 실행할 노출 비율이다. 숫자 하나 또는 숫자 배열을 쓴다.
+
 ## 언제 쓰나
 
 `IntersectionObserver`는 element가 viewport나 scroll container 안에 들어왔는지 감지할 때 쓴다. `scroll event`를 직접 듣고 매번 좌표를 계산하는 방식보다 단순하고, 브라우저가 관찰 시점을 조절할 수 있다.

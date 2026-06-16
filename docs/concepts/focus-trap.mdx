@@ -1,5 +1,142 @@
 # Focus Trap
 
+## API reference
+
+Focus Trap은 브라우저 focus API와 키보드 이벤트를 얇게 묶은 패턴이다. 핵심은 열린 영역의 현재 focus를 읽고, Tab 순서를 계산하고, 닫힐 때 이전 focus를 복구하는 것이다.
+
+### `document.activeElement`
+
+현재 focus된 요소를 읽는다.
+
+```tsx
+const element: Element | null = document.activeElement;
+```
+
+- 값이 없거나 문서 body에 머무를 수 있다.
+- 실제로 `.focus()`를 다시 호출하려면 `HTMLElement`인지 좁힌다.
+
+```tsx
+const getActiveElement = () => {
+  const element = document.activeElement;
+
+  if (!(element instanceof HTMLElement) || element === document.body) {
+    return undefined;
+  }
+
+  return element;
+};
+```
+
+### `HTMLElement.focus()`
+
+요소로 focus를 옮긴다.
+
+```tsx
+type HTMLElementFocus = (options?: FocusOptions) => void;
+```
+
+- `options.preventScroll`: focus 이동 때문에 스크롤이 튀는 것을 막는다.
+- 대상이 `HTMLElement`가 아니거나 focus 불가 상태면 기대한 위치로 이동하지 않는다.
+
+```tsx
+const focusInitialElement = (element: HTMLElement) => {
+  element.focus({ preventScroll: true });
+};
+```
+
+### `querySelectorAll()` focusable selector
+
+selector는 후보만 찾는다. 실제 Tab 순서는 비활성, 숨김, `tabIndex`를 다시 걸러야 한다.
+
+```tsx
+const focusableSelector = [
+  "a[href]",
+  "button",
+  "input",
+  "select",
+  "textarea",
+  "[contenteditable]:not([contenteditable='false'])",
+  "[tabindex]",
+].join(",");
+
+const getTabbableElements = (container: HTMLElement) =>
+  [...container.querySelectorAll<HTMLElement>(focusableSelector)].filter(
+    (element) =>
+      !element.matches(":disabled") &&
+      !element.closest("[hidden], [inert], [aria-hidden='true']") &&
+      element.tabIndex >= 0,
+  );
+```
+
+### `KeyboardEvent` Tab/Escape
+
+Tab은 trap 안에서 순환시키고, Escape는 dialog 닫기 동작에 연결한다.
+
+```tsx
+const handleKeyDown = (event: KeyboardEvent) => {
+  if (event.key === "Escape") {
+    closeDialog();
+    return;
+  }
+
+  if (event.key !== "Tab") {
+    return;
+  }
+
+  if (event.shiftKey) {
+    focusPreviousElement();
+    return;
+  }
+
+  focusNextElement();
+};
+```
+
+- `event.key`: `"Tab"`과 `"Escape"`를 구분한다.
+- `event.shiftKey`: Shift+Tab 역방향 이동을 구분한다.
+- `event.preventDefault()`: 브라우저 기본 Tab 이동을 막고 직접 focus를 옮길 때 쓴다.
+
+### `useRef()`와 `useEffect()` cleanup
+
+열리기 전 focus를 ref에 저장하고, effect cleanup에서 listener와 focus를 함께 정리한다.
+
+```tsx
+const previousFocusRef = useRef<HTMLElement | undefined>(undefined);
+
+useEffect(() => {
+  if (!isOpen) {
+    return;
+  }
+
+  previousFocusRef.current = getActiveElement();
+  document.addEventListener("keydown", handleKeyDown);
+
+  return () => {
+    document.removeEventListener("keydown", handleKeyDown);
+    previousFocusRef.current?.focus();
+  };
+}, [isOpen]);
+```
+
+### `role="dialog"`와 `aria-modal`
+
+Focus Trap은 focus 이동을 맡고, dialog 의미는 ARIA로 묶는다.
+
+```tsx
+<section
+  aria-labelledby="delivery-title"
+  aria-modal="true"
+  role="dialog"
+  tabIndex={-1}
+>
+  <h2 id="delivery-title">배송지 선택</h2>
+</section>
+```
+
+- `role="dialog"`: 열린 영역이 dialog임을 보조 기술에 알린다.
+- `aria-modal="true"`: dialog 바깥 콘텐츠가 현재 작업 흐름 밖임을 알린다.
+- `tabIndex={-1}`: 내부에 focus할 요소가 없을 때 container를 fallback으로 쓴다.
+
 ## 언제 쓰나
 
 Focus Trap은 modal처럼 열린 영역을 먼저 처리해야 할 때 쓴다. Tab focus를 영역 안에서만 순환시킨다.

@@ -1,5 +1,75 @@
 # 컴포넌트 분리
 
+## API reference
+
+컴포넌트를 나누면 파일보다 API가 먼저 생긴다. 바깥에서 넘길 값과 이벤트를 props 타입으로 고정하고, 내부 state 규칙은 소유한 컴포넌트 안에 둔다.
+
+```tsx title="props-contract.tsx"
+type Todo = {
+  id: string;
+  title: string;
+  done: boolean;
+};
+
+type TodoListProps = {
+  todos: Todo[];
+  children?: React.ReactNode;
+  onToggle: (id: Todo["id"]) => void;
+};
+
+export const TodoList = ({ todos, children, onToggle }: TodoListProps) => (
+  <section>
+    {children}
+    <ul>
+      {todos.map((todo) => (
+        <li key={todo.id}>
+          <button type="button" onClick={() => onToggle(todo.id)}>
+            {todo.done ? "완료" : "진행 중"}
+          </button>
+          {todo.title}
+        </li>
+      ))}
+    </ul>
+  </section>
+);
+```
+
+- Props type declaration은 컴포넌트의 입력 계약이다.
+- `children`은 컴포넌트 사이에 끼워 넣을 UI가 있을 때만 연다.
+- callback props는 내부 함수 이름이 아니라 바깥에서 일어난 이벤트 이름으로 둔다.
+- named export는 조립하는 쪽에서 필요한 컴포넌트만 명시해서 가져오게 한다.
+
+Controlled props는 값과 변경 이벤트를 한 세트로 둔다. 초깃값만 받는 컴포넌트와 섞지 않는다.
+
+```tsx title="controlled-filter.tsx"
+type FilterValue = "all" | "active" | "done";
+
+type TodoFilterTabsProps = {
+  value: FilterValue;
+  onValueChange: (nextValue: FilterValue) => void;
+};
+
+export const TodoFilterTabs = ({
+  value,
+  onValueChange,
+}: TodoFilterTabsProps) => (
+  <div role="tablist" aria-label="할 일 필터">
+    {(["all", "active", "done"] as const).map((filter) => (
+      <button
+        key={filter}
+        type="button"
+        aria-selected={value === filter}
+        onClick={() => onValueChange(filter)}
+      >
+        {filter}
+      </button>
+    ))}
+  </div>
+);
+```
+
+Composition boundary는 상위 컴포넌트가 조립을 맡고, 하위 컴포넌트가 받은 props 안에서만 그리는 선이다. 하위 컴포넌트가 부모의 state 전환 규칙을 알기 시작하면 경계가 흐려진다.
+
 ## 언제 쓰나
 
 state 전환 규칙과 JSX 흐름이 서로 가리면 역할을 나눈다.

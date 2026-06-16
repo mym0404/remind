@@ -1,5 +1,103 @@
 # Popover / Dropdown / Tooltip Positioning
 
+## API reference
+
+위치 계산에 필요한 값은 대부분 DOM이 이미 알고 있다. 먼저 trigger와 floating element의 `DOMRect`를 읽고, 어떤 좌표계에 놓을지만 정한다.
+
+```ts title="position-types.ts"
+type Placement = "top" | "bottom" | "left" | "right";
+type Strategy = "fixed" | "absolute";
+
+type Rect = {
+  top: number;
+  right: number;
+  bottom: number;
+  left: number;
+  width: number;
+  height: number;
+};
+
+type FloatingPosition = {
+  top: number;
+  left: number;
+  placement: Placement;
+};
+
+declare const computeFloatingPosition: (options: {
+  preferredPlacement: Placement;
+  triggerRect: Rect;
+  floatingRect: Rect;
+  clipRect: Rect;
+  offset: number;
+  strategy: Strategy;
+}) => FloatingPosition;
+```
+
+`getBoundingClientRect()`는 element의 현재 화면 위치를 `DOMRect`로 돌려준다. 값은 viewport 기준이므로 스크롤해도 `top`, `left`, `right`, `bottom`은 화면 안 좌표로 다시 계산된다. `x`와 `y`는 보통 `left`, `top`과 같은 의미로 쓰고, `width`, `height`는 element 크기다.
+
+```ts
+const triggerRect = triggerElement.getBoundingClientRect();
+
+const rect = {
+  top: triggerRect.top,
+  right: triggerRect.right,
+  bottom: triggerRect.bottom,
+  left: triggerRect.left,
+  width: triggerRect.width,
+  height: triggerRect.height,
+};
+```
+
+`window.innerWidth`와 `window.innerHeight`는 viewport 크기다. `position: fixed`를 쓰면 `DOMRect` 좌표를 그대로 쓴다. `position: absolute`처럼 document 좌표가 필요할 때만 `window.scrollX`, `window.scrollY`를 더한다.
+
+```ts
+const viewportRect = {
+  top: 0,
+  right: window.innerWidth,
+  bottom: window.innerHeight,
+  left: 0,
+  width: window.innerWidth,
+  height: window.innerHeight,
+};
+
+const scrollOffset =
+  strategy === "absolute"
+    ? { top: window.scrollY, left: window.scrollX }
+    : { top: 0, left: 0 };
+```
+
+렌더링할 때는 계산된 좌표를 `style.position`, `style.top`, `style.left`에 넣는다. 첫 측정 전에는 좌표가 없을 수 있으니 보이지 않게 두고, 측정이 끝난 뒤 보여준다.
+
+```tsx
+<div
+  ref={floatingRef}
+  style={{
+    position: strategy,
+    top: position?.top,
+    left: position?.left,
+    visibility: position === undefined ? "hidden" : "visible",
+  }}
+/>
+```
+
+trigger나 viewport가 움직이면 좌표도 다시 계산해야 한다. `resize`와 `scroll` listener는 열려 있을 때만 붙이고, cleanup에서 같은 옵션으로 제거한다.
+
+```tsx
+useEffect(() => {
+  if (!isOpen) {
+    return;
+  }
+
+  window.addEventListener("resize", updatePosition);
+  window.addEventListener("scroll", updatePosition, true);
+
+  return () => {
+    window.removeEventListener("resize", updatePosition);
+    window.removeEventListener("scroll", updatePosition, true);
+  };
+}, [isOpen, updatePosition]);
+```
+
 ## 언제 쓰나
 
 Popover, Dropdown, Tooltip처럼 trigger 옆에 floating element를 띄울 때 쓴다. trigger와 floating element의 rect를 읽고, viewport 기준 좌표로 위치를 계산한다.

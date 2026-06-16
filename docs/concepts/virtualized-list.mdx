@@ -1,5 +1,104 @@
 # Virtualized List
 
+## API reference
+
+virtualized list는 scroll container의 현재 위치를 읽고, 고정된 `itemHeight`로 화면에 걸리는 item index만 계산한다. container는 ref로 잡고, scroll event에서는 `scrollTop`, `clientHeight`, `scrollHeight`를 함께 읽는다.
+
+```ts title="declaration"
+type VisibleRange = {
+  startIndex: number;
+  endIndex: number;
+  topSpacerHeight: number;
+  bottomSpacerHeight: number;
+};
+
+const getVisibleRange = ({
+  itemCount,
+  itemHeight,
+  viewportHeight,
+  scrollTop,
+  overscan,
+}: {
+  itemCount: number;
+  itemHeight: number;
+  viewportHeight: number;
+  scrollTop: number;
+  overscan: number;
+}): VisibleRange => {
+  const visibleCount = Math.ceil(viewportHeight / itemHeight);
+  const startIndex = Math.max(0, Math.floor(scrollTop / itemHeight) - overscan);
+  const endIndex = Math.min(itemCount, startIndex + visibleCount + overscan * 2);
+
+  return {
+    startIndex,
+    endIndex,
+    topSpacerHeight: startIndex * itemHeight,
+    bottomSpacerHeight: Math.max(0, (itemCount - endIndex) * itemHeight),
+  };
+};
+```
+
+| 값 | 역할 |
+|---|---|
+| `scrollRef` | `overflowY: "auto"`가 걸린 scroll container를 가리킨다. |
+| `scrollTop` | container 안에서 위로 지나간 높이다. |
+| `clientHeight` | 실제로 보이는 viewport 높이다. |
+| `scrollHeight` | spacer까지 포함한 전체 scroll 가능 높이다. |
+| `itemHeight` | item 하나의 고정 높이다. |
+| `overscan` | viewport 밖에 미리 렌더링할 item 개수다. |
+
+`topSpacerHeight`와 `bottomSpacerHeight`는 빈 `div` 높이로 넣는다. list 자체를 absolute로 띄우는 방식보다 단순하고, scroll 높이를 실제 DOM 흐름 안에서 유지하기 쉽다.
+
+```tsx title="virtual-range-example.tsx"
+const itemHeight = 56;
+const overscan = 3;
+const viewportHeight = 320;
+
+const MessageList = ({
+  messages,
+}: {
+  messages: { id: string; text: string }[];
+}) => {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [metrics, setMetrics] = useState({
+    clientHeight: viewportHeight,
+    scrollHeight: 0,
+    scrollTop: 0,
+  });
+
+  const handleScroll = (event: React.UIEvent<HTMLDivElement>) => {
+    const { clientHeight, scrollHeight, scrollTop } = event.currentTarget;
+
+    setMetrics({ clientHeight, scrollHeight, scrollTop }); // [!code highlight]
+  };
+
+  const range = getVisibleRange({
+    itemCount: messages.length,
+    itemHeight,
+    overscan,
+    scrollTop: metrics.scrollTop,
+    viewportHeight: metrics.clientHeight,
+  });
+  const visibleMessages = messages.slice(range.startIndex, range.endIndex);
+
+  return (
+    <div
+      ref={scrollRef}
+      style={{ height: viewportHeight, overflowY: "auto" }}
+      onScroll={handleScroll}
+    >
+      <div style={{ height: range.topSpacerHeight }} /> {/* [!code highlight] */}
+      {visibleMessages.map((message) => (
+        <div key={message.id} style={{ height: itemHeight }}>
+          {message.text}
+        </div>
+      ))}
+      <div style={{ height: range.bottomSpacerHeight }} /> {/* [!code highlight] */}
+    </div>
+  );
+};
+```
+
 ## 언제 쓰나
 
 수천 개 이상의 item을 한 번에 렌더링하면 첫 렌더링과 스크롤 layout 계산이 무거워진다.

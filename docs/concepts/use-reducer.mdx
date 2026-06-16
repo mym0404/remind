@@ -1,5 +1,131 @@
 # useReducer
 
+## API reference
+
+`useReducer`는 상태 전이 규칙을 reducer 함수에 모으고, component에서는 `dispatch`로 action만 보낸다.
+
+```tsx title="useReducer-declaration.tsx"
+type Reducer<State, Action> = (state: State, action: Action) => State;
+type Dispatch<Action> = (action: Action) => void;
+type Initializer<InitialArg, State> = (initialArg: InitialArg) => State;
+
+declare function useReducer<State, Action>(
+  reducer: Reducer<State, Action>,
+  initialArg: State,
+): [State, Dispatch<Action>];
+
+declare function useReducer<State, Action, InitialArg>(
+  reducer: Reducer<State, Action>,
+  initialArg: InitialArg,
+  init: Initializer<InitialArg, State>,
+): [State, Dispatch<Action>];
+```
+
+- `reducer(state, action)`은 현재 state와 action을 받아 다음 state를 반환한다.
+- `initialArg`는 초기 state를 만들 때 쓰는 값이다.
+- `init`을 넘기면 초기 state는 `init(initialArg)` 결과가 된다.
+- 반환값은 `[state, dispatch]` tuple이다.
+- `dispatch(action)`은 action을 reducer로 보내며, 직접 다음 state를 반환하지 않는다.
+
+```tsx title="Counter.tsx"
+type CounterState = { count: number };
+
+type CounterAction =
+  | { type: "increment"; amount: number }
+  | { type: "reset" };
+
+const counterReducer = (
+  state: CounterState,
+  action: CounterAction,
+): CounterState => {
+  switch (action.type) {
+    case "increment":
+      return { count: state.count + action.amount };
+    case "reset":
+      return { count: 0 };
+  }
+};
+
+const Counter = () => {
+  const [state, dispatch] = useReducer(counterReducer, { count: 0 });
+
+  return (
+    <button
+      type="button"
+      onClick={() => dispatch({ type: "increment", amount: 1 })}
+    >
+      {state.count}
+    </button>
+  );
+};
+```
+
+action은 union type으로 좁게 잡는다. 그러면 `action.type`에 따라 payload 타입도 같이 좁혀진다.
+
+```tsx title="ActionUnion.tsx"
+type FormState = {
+  name: string;
+  agreed: boolean;
+};
+
+type FormAction =
+  | { type: "name/change"; value: string }
+  | { type: "agreed/toggle" };
+
+const formReducer = (state: FormState, action: FormAction): FormState => {
+  switch (action.type) {
+    case "name/change":
+      return { ...state, name: action.value };
+    case "agreed/toggle":
+      return { ...state, agreed: !state.agreed };
+  }
+};
+```
+
+초기 state 계산이 비싸거나 props에서 파생되면 lazy initializer를 쓴다. React는 첫 렌더링 때만 `init(initialArg)`를 호출한다.
+
+```tsx title="LazyInitializer.tsx"
+type DraftState = {
+  title: string;
+  tags: string[];
+};
+
+type DraftAction =
+  | { type: "title/change"; value: string }
+  | { type: "tag/add"; value: string };
+
+const createDraftState = (savedTitle: string): DraftState => ({
+  title: savedTitle.trim(),
+  tags: [],
+});
+
+const draftReducer = (state: DraftState, action: DraftAction): DraftState => {
+  switch (action.type) {
+    case "title/change":
+      return { ...state, title: action.value };
+    case "tag/add":
+      return { ...state, tags: [...state.tags, action.value] };
+  }
+};
+
+const DraftEditor = ({ savedTitle }: { savedTitle: string }) => {
+  const [state, dispatch] = useReducer(
+    draftReducer,
+    savedTitle,
+    createDraftState,
+  );
+
+  return (
+    <input
+      value={state.title}
+      onChange={(event) =>
+        dispatch({ type: "title/change", value: event.target.value })
+      }
+    />
+  );
+};
+```
+
 ## 언제 쓰나
 
 `useReducer`는 여러 상태 조각이 한 action으로 함께 바뀔 때 쓴다. 입력값 하나나 열림 상태 하나면 `useState`가 더 낫다.

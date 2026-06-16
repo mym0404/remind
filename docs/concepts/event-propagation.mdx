@@ -1,5 +1,60 @@
 # 이벤트 버블링 / 캡처링 / stopPropagation
 
+## API reference
+
+React 이벤트 handler는 브라우저 이벤트를 `SyntheticEvent`로 받는다. Handler 반환값은 React가 쓰지 않으므로, 전파와 기본 동작은 event 메서드로 제어한다.
+
+| API | 선언 / 인자 | 동작 / 반환 |
+|---|---|---|
+| `React.SyntheticEvent<T = Element, E = Event>` | React가 넘기는 이벤트 객체 | DOM event를 감싼 객체다. `currentTarget`, `target`, `stopPropagation`, `preventDefault`, `nativeEvent`를 제공한다. |
+| `onClick` / `onClickCapture` | `(event: React.MouseEvent<T>) => void` | 클릭 bubble / capture handler다. 반환값은 무시된다. |
+| `onPointerDown` / `onPointerDownCapture` | `(event: React.PointerEvent<T>) => void` | 포인터가 눌리는 순간의 bubble / capture handler다. 마우스, 터치, 펜 입력을 같은 흐름으로 다룬다. |
+| `event.currentTarget` | Handler가 붙은 element | React 타입에서 `T`로 좁혀진다. 부모 handler에서는 부모 element다. |
+| `event.target` | 이벤트가 처음 시작된 DOM target | 자식 element일 수 있다. TypeScript에서는 보통 `EventTarget`으로 다룬다. |
+| `event.stopPropagation()` | `() => void` | 남은 전파 단계를 막는다. 이미 실행된 handler는 되돌리지 않는다. |
+| `event.preventDefault()` | `() => void` | 링크 이동, form submit 같은 기본 브라우저 동작을 막는다. 전파는 막지 않는다. |
+| `event.nativeEvent` | 원본 DOM event | React event에 없는 DOM API가 필요할 때만 읽는다. 보통 handler 로직은 `SyntheticEvent`로 충분하다. |
+
+```tsx title="handler-types.tsx"
+const handleSaveClick: React.MouseEventHandler<HTMLButtonElement> = (event) => {
+  console.log(event.currentTarget.name); // HTMLButtonElement
+  event.stopPropagation();
+};
+
+const handleSurfacePointerDown: React.PointerEventHandler<HTMLDivElement> = (event) => {
+  console.log(event.pointerType);
+};
+```
+
+```tsx title="capture-bubble.tsx"
+const CaptureBubble = () => (
+  <section
+    onClickCapture={() => {
+      console.log("click capture");
+    }}
+    onClick={() => {
+      console.log("click bubble");
+    }}
+    onPointerDownCapture={() => {
+      console.log("pointer capture");
+    }}
+    onPointerDown={() => {
+      console.log("pointer bubble");
+    }}
+  >
+    <a
+      href="/settings"
+      onClick={(event) => {
+        event.preventDefault();
+        console.log(event.currentTarget.href);
+      }}
+    >
+      설정
+    </a>
+  </section>
+);
+```
+
 ## 언제 쓰나
 
 부모와 자식이 같은 클릭, 포인터, 키보드 이벤트를 함께 다룰 때 쓴다.

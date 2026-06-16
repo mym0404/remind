@@ -1,5 +1,68 @@
 # React Router
 
+## API reference
+
+이 문서는 React Router의 declarative routing 기준이다. `BrowserRouter` 안에서 `Routes`와 `Route`를 선언하고, 중첩 화면은 부모 route의 `Outlet` 자리에 렌더링한다.
+
+```tsx title="router-api.tsx"
+import {
+  BrowserRouter,
+  Link,
+  NavLink,
+  Outlet,
+  Route,
+  Routes,
+  useNavigate,
+  useParams,
+} from "react-router";
+
+const App = () => (
+  <BrowserRouter>
+    <Routes>
+      <Route path="/projects" element={<ProjectsLayout />}>
+        <Route index element={<ProjectList />} />
+        <Route path=":projectId" element={<ProjectDetail />} />
+      </Route>
+      <Route path="*" element={<NotFound />} />
+    </Routes>
+  </BrowserRouter>
+);
+
+const ProjectsLayout = () => (
+  <main>
+    <nav>
+      <NavLink to="/projects">목록</NavLink>
+      <Link to="/projects/router">라우팅</Link>
+    </nav>
+    <Outlet />
+  </main>
+);
+
+const ProjectDetail = () => {
+  const { projectId } = useParams<"projectId">();
+  const navigate = useNavigate();
+
+  return (
+    <article>
+      <h1>{projectId}</h1>
+      <button type="button" onClick={() => navigate("/projects")}>
+        목록으로
+      </button>
+    </article>
+  );
+};
+```
+
+- `BrowserRouter`: 브라우저 주소를 읽고 쓰는 router다. 보통 앱 루트에서 한 번 감싼다. 주요 props는 `basename?: string`, `children?: React.ReactNode`, `window?: Window`다.
+- `Routes`: 현재 URL과 가장 잘 맞는 `Route` 하나를 고른다. 자식으로 `Route`만 둔다.
+- `Route`: `path`는 URL 패턴이고, `element`는 매칭됐을 때 렌더링할 JSX다. `index` route는 부모 path와 정확히 같을 때 렌더링된다.
+- `Outlet`: 부모 route의 element 안에서 자식 route element가 들어갈 위치다.
+- `Link`: 페이지 새로고침 없이 `to` 주소로 이동한다.
+- `NavLink`: `Link`처럼 이동하고, 현재 주소와 맞는지에 따라 `isActive` 상태를 스타일에 쓸 수 있다.
+- `useParams`: `:projectId` 같은 route param을 읽는다. 값은 문자열이거나 없을 수 있으므로 조회 실패 처리는 따로 둔다.
+- `useNavigate`: 저장 후 이동, 권한 확인 후 이동, 뒤로 가기처럼 코드 흐름 안에서 이동해야 할 때 쓴다.
+- Fallback route: `path="*"`는 앞 route가 아무것도 매칭하지 못했을 때 렌더링된다. 더 구체적인 route 뒤에 둔다.
+
 ## 언제 쓰나
 
 - 목록/상세 URL을 나누고 route param으로 데이터를 찾을 때 쓴다.

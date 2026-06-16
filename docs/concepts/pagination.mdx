@@ -1,5 +1,113 @@
 # Pagination
 
+## API reference
+
+Pagination은 보통 `page`와 `pageSize`를 상태로 둔다. `page`는 1부터 시작하게 두면 화면 표시와 계산이 단순하다.
+
+```tsx title="pagination-state.tsx"
+const [page, setPage] = useState(1);
+const [pageSize, setPageSize] = useState(20);
+```
+
+이미 받은 배열은 `slice(start, end)`로 자른다. `end`는 포함되지 않으므로 `start + pageSize`를 그대로 넣는다.
+
+```ts title="pagination-range.ts"
+type PageRange = {
+  start: number;
+  end: number;
+};
+
+const getPageRange = ({
+  page,
+  pageSize,
+}: {
+  page: number;
+  pageSize: number;
+}): PageRange => {
+  const start = (page - 1) * pageSize;
+
+  return {
+    start,
+    end: start + pageSize,
+  };
+};
+
+const { start, end } = getPageRange({ page, pageSize });
+const visibleItems = items.slice(start, end);
+```
+
+전체 개수를 알고 있으면 page 수와 이동 가능 여부를 helper로 묶어 계산한다.
+
+```ts title="pagination-meta.ts"
+type PaginationMeta = {
+  currentPage: number;
+  pageCount: number;
+  hasPrev: boolean;
+  hasNext: boolean;
+};
+
+const getPaginationMeta = ({
+  page,
+  pageSize,
+  totalCount,
+}: {
+  page: number;
+  pageSize: number;
+  totalCount: number;
+}): PaginationMeta => {
+  const pageCount = Math.max(1, Math.ceil(totalCount / pageSize));
+  const currentPage = Math.min(Math.max(page, 1), pageCount);
+
+  return {
+    currentPage,
+    pageCount,
+    hasPrev: currentPage > 1,
+    hasNext: currentPage < pageCount,
+  };
+};
+```
+
+공유, 새로고침, 뒤로 가기가 필요하면 `page`와 `pageSize`를 search param에 둔다. 이때 `URLSearchParams`에는 문자열을 넣는다.
+
+```ts title="pagination-params.ts"
+const params = new URLSearchParams({
+  page: String(page),
+  pageSize: String(pageSize),
+});
+
+const nextUrl = `/orders?${params.toString()}`;
+```
+
+이전/다음 버튼은 `disabled`를 props로 넘긴다. 서버 목록에서는 loading 중에도 막아야 중복 요청이 줄어든다.
+
+```tsx title="pagination-buttons.tsx"
+<>
+  <button type="button" onClick={() => setPage(page - 1)} disabled={!hasPrev || isLoading}>
+    이전
+  </button>
+  <button type="button" onClick={() => setPage(page + 1)} disabled={!hasNext || isLoading}>
+    다음
+  </button>
+</>
+```
+
+페이지 번호를 link로 보여줄 때는 현재 page에 `aria-current="page"`를 둔다.
+
+```tsx title="pagination-links.tsx"
+{pageNumbers.map((pageNumber) => (
+  <a
+    key={pageNumber}
+    href={`?${new URLSearchParams({
+      page: String(pageNumber),
+      pageSize: String(pageSize),
+    })}`}
+    aria-current={pageNumber === page ? "page" : undefined}
+  >
+    {pageNumber}
+  </a>
+))}
+```
+
 ## 언제 쓰나
 
 긴 목록을 page 단위로 끊어 보여줄 때 쓴다. 검색 결과, 주문 목록, 관리자 테이블처럼 위치를 다시 찾아야 하는 화면에 잘 맞는다.

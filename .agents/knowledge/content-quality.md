@@ -8,6 +8,8 @@
 
 ## Code Examples
 
+- 개념 문서는 H1 바로 아래에 `## API reference`를 두고, 해당 주제의 선언 방식, 주요 인자와 반환값, cleanup이나 lifecycle 경계를 먼저 설명한다.
+- `## API reference`는 MDN이나 React API reference를 복붙한 표가 아니라, 이 저장소 독자가 바로 구현에 옮길 수 있는 최소 contract와 예시를 담는다.
 - 코드 예시는 전체 앱이 아니라 핵심 흐름만 보여준다.
 - 예시 코드는 빌드 가능한 전체 파일일 필요가 없다.
 - import, export, 주변 type 선언, Props 보일러플레이트는 주제가 아니면 생략한다.

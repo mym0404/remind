@@ -1,5 +1,103 @@
 # ARIA / Keyboard Interaction
 
+## API reference
+
+키보드 상호작용은 `onKeyDown`에서 처리한다. React handler는 `void`를 반환하고, 반환값으로 브라우저 기본 동작을 막지 않는다. 스크롤, 버튼 클릭, 폼 제출처럼 기본 동작을 막아야 할 때는 조건을 확인한 뒤 `event.preventDefault()`를 직접 호출한다.
+
+| API | 선언과 사용 | 확인할 값 |
+|---|---|---|
+| `KeyboardEventHandler<T>` | `const onKeyDown: KeyboardEventHandler<HTMLDivElement> = (event) => {}` | `event.key`, `event.currentTarget` |
+| `event.key` | `ArrowUp`, `ArrowDown`, `ArrowLeft`, `ArrowRight`, `Home`, `End`, `Enter`, `" "`, `Escape`, `Tab` | Space는 `" "`다. `"Space"`가 아니다. |
+| `event.preventDefault()` | 기본 스크롤, Space 클릭, Enter 제출을 막을 때 호출 | Tab 이동까지 막지 않는지 확인한다. |
+| `tabIndex` | custom interactive element를 focus 순서에 넣거나 뺀다 | `0`은 Tab 진입, `-1`은 programmatic focus만 허용한다. |
+| `focus()` | `ref.current?.focus()`로 DOM focus를 옮긴다 | 닫을 때 trigger로 focus를 돌려준다. |
+| `aria-*` | 이름, 상태, 관계를 보조 기술에 전달한다 | DOM 상태와 항상 같은 값을 넣는다. |
+
+```tsx title="keyboard-handler.tsx"
+import type { KeyboardEventHandler } from "react";
+
+type ListboxKeyboardOptions = {
+  close: () => void;
+  moveActive: (step: 1 | -1) => void;
+  selectActive: () => void;
+};
+
+const createListboxKeyDown =
+  ({
+    close,
+    moveActive,
+    selectActive,
+  }: ListboxKeyboardOptions): KeyboardEventHandler<HTMLDivElement> =>
+  (event) => {
+    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      event.preventDefault();
+      moveActive(event.key === "ArrowDown" ? 1 : -1);
+      return;
+    }
+
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      selectActive();
+      return;
+    }
+
+    if (event.key === "Escape") {
+      event.preventDefault();
+      close();
+    }
+  };
+```
+
+ARIA는 동작을 만들지 않는다. `aria-expanded`, `aria-selected`, `aria-disabled`를 바꿔도 클릭 차단, focus 이동, 선택 변경은 자동으로 생기지 않는다. React state, handler, DOM focus를 같은 기준으로 맞춰야 한다.
+
+| 목적 | 주로 쓰는 속성 | 같이 맞출 동작 |
+|---|---|---|
+| popup trigger | `aria-expanded`, `aria-controls`, `aria-haspopup` | 열림 상태와 popup `id`를 맞춘다. |
+| listbox option | `role="option"`, `aria-selected`, `aria-disabled` | 선택, disabled 차단, active item 이동을 handler에서 처리한다. |
+| roving focus | `tabIndex={active ? 0 : -1}` | active item만 Tab 진입점으로 둔다. |
+| virtual focus | `aria-activedescendant={itemId}` | container에 focus를 두고 실제 DOM `id`를 가리킨다. |
+| 설명 연결 | `aria-labelledby`, `aria-label`, `aria-describedby` | 보이는 이름은 `aria-labelledby`로 우선 연결한다. |
+| 상태 알림 | `aria-live`, `role="status"` | 비동기 완료나 toast처럼 focus를 옮기지 않는 메시지에 쓴다. |
+
+```tsx title="focus-and-aria.tsx"
+import { useRef, useState } from "react";
+
+const PopupTrigger = ({ popupId }: { popupId: string }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+
+  const close = () => {
+    setIsOpen(false);
+    requestAnimationFrame(() => triggerRef.current?.focus());
+  };
+
+  return (
+    <>
+      <button
+        ref={triggerRef}
+        type="button"
+        aria-expanded={isOpen}
+        aria-controls={popupId}
+        aria-haspopup="listbox"
+        onClick={() => setIsOpen((current) => !current)}
+      >
+        작업 열기
+      </button>
+
+      {isOpen ? (
+        <div id={popupId} role="listbox" tabIndex={0}>
+          <button type="button" onClick={close}>
+            닫기
+          </button>
+        </div>
+      ) : undefined}
+    </>
+  );
+};
+```
+
+컴포넌트 안에서만 `onKeyDown`을 쓰면 별도 cleanup은 없다. `document.addEventListener("keydown", ...)`처럼 전역 listener를 붙인 경우에는 `useEffect` cleanup에서 같은 listener를 제거한다.
+
 ## 언제 쓰나
 
 접근성은 native element로 먼저 해결한다. `button`, `input`, `select`, `dialog`처럼 의미와 키보드 동작을 이미 가진 요소를 우선한다.

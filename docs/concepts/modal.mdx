@@ -1,5 +1,167 @@
 # Modal
 
+## API reference
+
+Modal API는 열림 상태와 닫기 요청을 부모가 갖고, Modal은 portal, 접근성 속성, 닫기 이벤트, focus 제어를 맡는 형태가 단순하다.
+
+```tsx title="Modal.types.ts"
+type ModalProps = {
+  open: boolean;
+  titleId: string;
+  descriptionId?: string;
+  initialFocusRef?: RefObject<HTMLElement | null>;
+  restoreFocusRef: RefObject<HTMLElement | null>;
+  onClose: () => void;
+  children: ReactNode;
+};
+```
+
+`createPortal`은 Modal DOM을 `document.body` 아래에 붙여 z-index와 stacking context 영향을 줄인다. Dialog 본문에는 `role="dialog"`, `aria-modal="true"`, 제목을 가리키는 `aria-labelledby`를 둔다. 설명 문장이 있으면 `aria-describedby`도 연결한다.
+
+```tsx title="Modal.portal.tsx"
+const Modal = ({
+  children,
+  descriptionId,
+  onClose,
+  open,
+  titleId,
+}: ModalProps) => {
+  if (!open) {
+    return undefined;
+  }
+
+  const handleBackdropMouseDown = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (event.target === event.currentTarget) {
+      onClose();
+    }
+  };
+
+  return createPortal(
+    <div className="backdrop" onMouseDown={handleBackdropMouseDown}>
+      <section
+        aria-describedby={descriptionId}
+        aria-labelledby={titleId}
+        aria-modal="true"
+        className="modal"
+        role="dialog"
+      >
+        {children}
+      </section>
+    </div>,
+    document.body,
+  );
+};
+```
+
+Escape는 열린 동안만 listen하고 cleanup한다. Backdrop은 `event.currentTarget`과 `event.target`이 같을 때만 닫아야 dialog 내부 클릭을 보존한다.
+
+```tsx title="useModalCloseHandlers.tsx"
+const useEscapeClose = ({ onClose, open }: { onClose: () => void; open: boolean }) => {
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        onClose();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [onClose, open]);
+};
+```
+
+Focus는 열릴 때 Modal 안으로 들어가고, 닫힌 뒤 trigger로 돌아와야 한다. Focus trap은 `Tab` 이동이 첫 요소와 마지막 요소 사이에서 순환하도록 잡는다.
+
+```tsx title="useModalFocus.tsx"
+const focusableSelector = [
+  "button",
+  "a[href]",
+  "input",
+  "select",
+  "textarea",
+  "[tabindex]:not([tabindex='-1'])",
+].join(",");
+
+const useModalFocus = ({
+  dialogRef,
+  initialFocusRef,
+  open,
+  restoreFocusRef,
+}: {
+  dialogRef: RefObject<HTMLElement | null>;
+  initialFocusRef?: RefObject<HTMLElement | null>;
+  open: boolean;
+  restoreFocusRef: RefObject<HTMLElement | null>;
+}) => {
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    const previousFocus = restoreFocusRef.current;
+    const firstFocusTarget =
+      initialFocusRef?.current ?? dialogRef.current?.querySelector<HTMLElement>(focusableSelector);
+
+    firstFocusTarget?.focus();
+
+    return () => {
+      requestAnimationFrame(() => {
+        previousFocus?.focus();
+      });
+    };
+  }, [dialogRef, initialFocusRef, open, restoreFocusRef]);
+};
+
+const useFocusTrap = ({
+  dialogRef,
+  open,
+}: {
+  dialogRef: RefObject<HTMLElement | null>;
+  open: boolean;
+}) => {
+  useEffect(() => {
+    const dialog = dialogRef.current;
+
+    if (!open || !dialog) {
+      return;
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Tab") {
+        return;
+      }
+
+      const focusableElements = Array.from(dialog.querySelectorAll<HTMLElement>(focusableSelector));
+      const firstElement = focusableElements.at(0);
+      const lastElement = focusableElements.at(-1);
+
+      if (event.shiftKey && document.activeElement === firstElement) {
+        event.preventDefault();
+        lastElement?.focus();
+      }
+
+      if (!event.shiftKey && document.activeElement === lastElement) {
+        event.preventDefault();
+        firstElement?.focus();
+      }
+    };
+
+    dialog.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      dialog.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [dialogRef, open]);
+};
+```
+
 ## 언제 쓰나
 
 Modal은 지금 흐름을 멈추고 먼저 결정해야 할 때 쓴다. 삭제 확인, 짧은 입력, 세션 만료처럼 화면 뒤 작업보다 앞선 판단이 필요한 경우다.

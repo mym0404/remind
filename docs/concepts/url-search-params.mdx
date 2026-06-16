@@ -1,5 +1,73 @@
 # URL Search Params
 
+## API reference
+
+`URLSearchParams`는 query string을 읽고 고치는 브라우저 API다. React Router를 쓰는 화면에서는 `useSearchParams`가 이 값을 URL과 연결해 준다.
+
+```ts title="주요 선언"
+type URLSearchParamsInit =
+  | string
+  | string[][]
+  | Record<string, string>
+  | URLSearchParams;
+
+interface URLSearchParams {
+  get(name: string): string | null;
+  set(name: string, value: string): void;
+  delete(name: string): void;
+  has(name: string): boolean;
+  toString(): string;
+}
+
+declare const URLSearchParams: {
+  new (init?: URLSearchParamsInit): URLSearchParams;
+};
+```
+
+```tsx title="URLSearchParams.tsx"
+const params = new URLSearchParams("?q=react&tag=router");
+
+const query = params.get("q") ?? "";
+const hasTag = params.has("tag");
+
+params.set("q", query.trim());
+
+if (hasTag) {
+  params.delete("tag");
+}
+
+const queryString = params.toString(); // "q=react"
+```
+
+React Router의 `setSearchParams`는 URL을 바꾸는 navigation이다. 기본 동작은 push이고, `{ replace: true }`를 넘기면 현재 history entry를 갈아낀다.
+
+```ts title="React Router에서 자주 쓰는 형태"
+type SearchParamSetter = (
+  nextInit:
+    | URLSearchParams
+    | Record<string, string>
+    | ((prev: URLSearchParams) => URLSearchParams),
+  navigateOptions?: { replace?: boolean },
+) => void;
+
+declare const useSearchParams: () => [URLSearchParams, SearchParamSetter];
+```
+
+```tsx title="RouterSearchParams.tsx"
+const [searchParams, setSearchParams] = useSearchParams();
+
+const page = Number(searchParams.get("page") ?? "1");
+const nextParams = new URLSearchParams(searchParams);
+
+nextParams.set("page", String(page + 1));
+
+// 뒤로 가기로 이전 page를 다시 봐야 하면 push를 쓴다.
+setSearchParams(nextParams);
+
+// 입력 중인 검색어처럼 history를 늘리지 않아야 하면 replace를 쓴다.
+setSearchParams(nextParams, { replace: true });
+```
+
 ## 언제 쓰나
 
 - 검색어, 필터, 정렬처럼 공유 가능한 목록 조건을 URL에 남길 때.

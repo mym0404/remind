@@ -1,5 +1,53 @@
 # Ref / Imperative API
 
+## API reference
+
+### `useRef(initialValue)`
+
+`useRef`는 렌더링 사이에 같은 객체를 유지한다. `ref.current`를 바꿔도 다시 렌더링되지 않으므로 DOM node, timer id, 외부 instance처럼 화면 상태가 아닌 값을 담기에 맞다.
+
+```tsx title="declarations.tsx"
+const inputRef = useRef<HTMLInputElement>(null);
+const timerIdRef = useRef<number | undefined>(undefined);
+```
+
+DOM ref는 JSX의 `ref`에 넘기고, 값 ref는 event handler나 effect 안에서 직접 읽고 쓴다.
+
+```tsx title="FocusButton.tsx"
+const FocusButton = () => {
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  return (
+    <>
+      <input ref={inputRef} />
+      <button type="button" onClick={() => inputRef.current?.focus()}>
+        Focus
+      </button>
+    </>
+  );
+};
+```
+
+### `useImperativeHandle(ref, createHandle, deps)`
+
+`useImperativeHandle`은 부모에게 노출할 `ref.current` 값을 직접 정한다. DOM node 전체를 넘기지 말고, 부모가 호출해야 하는 method만 handle에 담는다.
+
+```tsx title="declarations.tsx"
+type SearchInputHandle = {
+  focus: () => void;
+  scrollIntoView: () => void;
+  clear: () => void;
+};
+
+type SearchInputProps = {
+  ref?: React.Ref<SearchInputHandle>;
+  value: string;
+  onChange: (value: string) => void;
+};
+```
+
+`deps`는 `createHandle` 안에서 읽는 props, state, function을 적는 배열이다. 생략하면 매 렌더링마다 handle을 다시 만들고, `[]`를 넘기면 처음 만든 method가 같은 값을 계속 닫아 둔다. `onChange`처럼 props에서 온 함수를 method가 읽으면 dependency에 넣어야 오래된 값을 호출하지 않는다.
+
 ## 언제 쓰나
 
 `ref`는 DOM node나 렌더링과 무관한 값을 잡아둘 때 쓴다. focus, scroll, timer id, 외부 instance처럼 값 변경이 화면 갱신으로 이어지지 않는 경우다.
@@ -9,8 +57,8 @@
 ## 바로 쓰는 코드
 
 ```tsx title="SearchInput.tsx"
-const SearchInput = ({ ref, value, onChange }) => {
-  const inputRef = useRef(null); // [!code highlight]
+const SearchInput = ({ ref, value, onChange }: SearchInputProps) => {
+  const inputRef = useRef<HTMLInputElement>(null); // [!code highlight]
 
   useImperativeHandle(
     ref,
@@ -40,10 +88,10 @@ const SearchInput = ({ ref, value, onChange }) => {
 
 const SearchPanel = () => {
   const [query, setQuery] = useState("");
-  const searchInputRef = useRef(null);
+  const searchInputRef = useRef<SearchInputHandle>(null);
   const lastSubmittedQueryRef = useRef(""); // Mutable, not rendered.
 
-  const handleSubmit = (event) => {
+  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
     const nextQuery = query.trim();

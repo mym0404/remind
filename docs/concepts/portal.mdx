@@ -1,5 +1,73 @@
 # Portal
 
+## API reference
+
+`createPortal(children, domNode, key?)`는 `children`을 React tree에 남겨 둔 채, 실제 DOM만 `domNode` 아래에 렌더링한다.
+
+```tsx title="Declaration"
+declare function createPortal(
+  children: React.ReactNode,
+  domNode: Element | DocumentFragment,
+  key?: string | null,
+): React.ReactPortal;
+```
+
+- `children`: Portal로 보낼 React node다.
+- `domNode`: 이미 존재하는 DOM node다. 없으면 직접 만들고 mount 뒤에 연결해야 한다.
+- `key`: 같은 target에 여러 Portal을 렌더링할 때 구분이 필요하면 넘긴다.
+
+대상 DOM node를 컴포넌트가 만들었다면 unmount 때 같이 제거한다.
+
+```tsx title="usePortalTarget.tsx"
+const usePortalTarget = (targetId: string) => {
+  const [target, setTarget] = useState<HTMLElement>();
+
+  useEffect(() => {
+    const existingTarget = document.getElementById(targetId);
+
+    if (existingTarget) {
+      setTarget(existingTarget);
+      return;
+    }
+
+    const createdTarget = document.createElement("div");
+    createdTarget.id = targetId;
+    document.body.appendChild(createdTarget);
+    setTarget(createdTarget);
+
+    return () => {
+      createdTarget.remove(); // [!code highlight]
+    };
+  }, [targetId]);
+
+  return target;
+};
+```
+
+Portal 내부 event는 DOM tree가 아니라 React tree 기준으로 전파된다. Modal, popover처럼 바깥 클릭을 다루는 UI에서는 내부 클릭이 부모 handler까지 올라가지 않게 막아야 한다.
+
+```tsx title="Popover.tsx"
+const Popover = ({ anchorId }: { anchorId: string }) => {
+  const target = usePortalTarget("portal-root");
+
+  if (target === undefined) {
+    return null;
+  }
+
+  return createPortal(
+    <div
+      aria-labelledby={anchorId}
+      className="popover"
+      onClick={(event) => event.stopPropagation()} // [!code highlight]
+      role="dialog"
+    >
+      빠른 작업
+    </div>,
+    target,
+  );
+};
+```
+
 ## 언제 쓰나
 
 Portal은 Modal, toast, dropdown처럼 떠 있는 UI를 부모 DOM 밖에 렌더링할 때 쓴다. React tree는 그대로라 Context, state, event 흐름은 유지된다.
@@ -17,8 +85,8 @@ Portal은 DOM 위치만 바꾼다. focus trap, Escape 닫기, 스크롤 잠금, 
 ```tsx title="Portal.tsx"
 const PORTAL_ROOT_ID = "portal-root";
 
-const usePortalTarget = (targetId) => {
-  const [target, setTarget] = useState();
+const usePortalTarget = (targetId: string) => {
+  const [target, setTarget] = useState<HTMLElement>();
 
   useEffect(() => {
     const existingTarget = document.getElementById(targetId);
@@ -44,6 +112,9 @@ const usePortalTarget = (targetId) => {
 const Portal = ({
   children,
   targetId = PORTAL_ROOT_ID,
+}: {
+  children: React.ReactNode;
+  targetId?: string;
 }) => {
   const target = usePortalTarget(targetId);
 

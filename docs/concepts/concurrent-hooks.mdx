@@ -1,5 +1,104 @@
 # React 최신 Hook / Concurrent UI
 
+## API reference
+
+Concurrent UI API는 급한 입력과 늦춰도 되는 렌더링을 분리한다. `useTransition`은 state update를 transition으로 표시하고, `useDeferredValue`는 값 하나의 반영 시점을 늦춘다.
+
+### `useTransition`
+
+- 선언: `const [isPending, startTransition] = useTransition()`
+- 반환: `[boolean, (action: () => void | Promise<void>) => void]` 튜플을 반환한다.
+- 갱신: `startTransition`으로 시작한 transition이 남아 있으면 `isPending`이 `true`가 되고, 관련 update가 끝나 화면에 반영되면 `false`로 돌아온다.
+- 용도: 탭, 필터, 차트, 목록처럼 입력 흐름을 막지 않아도 되는 state update를 감싼다.
+
+```tsx title="useTransition.tsx"
+const ProductTabs = () => {
+  const [tab, setTab] = useState("details");
+  const [isPending, startTransition] = useTransition();
+
+  const selectTab = (nextTab: string) => {
+    startTransition(() => {
+      setTab(nextTab);
+    });
+  };
+
+  return (
+    <section aria-busy={isPending}>
+      <button type="button" onClick={() => selectTab("reviews")}>
+        리뷰
+      </button>
+      <ProductPanel tab={tab} />
+    </section>
+  );
+};
+```
+
+### `startTransition`
+
+- 선언: `startTransition(action)`
+- 인자: `action`은 React가 즉시 호출하는 함수다. 이 함수가 동기적으로 예약한 state update가 transition으로 표시된다.
+- 반환: 값을 반환하지 않는다.
+- 갱신: `await` 뒤의 state update는 transition 범위를 잃을 수 있으므로 다시 `startTransition`으로 감싼다.
+
+```tsx title="startTransition.tsx"
+const saveTab = async (nextTab: string) => {
+  await savePreference(nextTab);
+
+  startTransition(() => {
+    setTab(nextTab);
+  });
+};
+```
+
+### `isPending`
+
+- 선언: `const [isPending] = useTransition()`
+- 값: 같은 `useTransition`에서 시작한 transition의 진행 여부를 나타내는 boolean이다.
+- 갱신: transition이 시작되면 `true`, 더 급한 update에 밀린 렌더링까지 끝나면 `false`다.
+- 용도: 전체 page loading이 아니라 transition으로 바뀌는 영역의 피드백에만 쓴다.
+
+```tsx title="isPending.tsx"
+const ResultCount = ({
+  isPending,
+  count,
+}: {
+  isPending: boolean;
+  count: number;
+}) => (
+  <p aria-live="polite">
+    {isPending ? "목록을 바꾸는 중" : `${count}개 표시`}
+  </p>
+);
+```
+
+### `useDeferredValue`
+
+- 선언: `const deferredValue = useDeferredValue(value, initialValue?)`
+- 인자: `value`는 늦춰 반영할 값이고, `initialValue`는 첫 렌더에서만 대신 쓸 값이다.
+- 반환: `value`와 같은 타입의 deferred value를 반환한다.
+- 갱신: 첫 렌더에서는 `initialValue`가 있으면 그 값을, 없으면 `value`를 반환한다. 이후 `value`가 달라지면 먼저 이전 값을 반환하고, background render가 끝나면 새 값을 반환한다.
+- 주의: 고정 지연 시간이나 debounce가 아니다. transition 안에서 온 update는 이미 늦춰진 update라서 새 `value`를 바로 반환한다.
+
+```tsx title="useDeferredValue.tsx"
+const SearchResults = () => {
+  const [query, setQuery] = useState("");
+  const deferredQuery = useDeferredValue(query);
+  const isStale = query !== deferredQuery;
+
+  return (
+    <>
+      <input
+        value={query}
+        onChange={(event) => {
+          setQuery(event.target.value);
+        }}
+      />
+      <ResultList query={deferredQuery} dimmed={isStale} />
+    </>
+  );
+};
+```
+
 ## 언제 쓰나
 
 입력은 즉시 반응해야 하고 목록, 차트, 탭 갱신은 늦춰도 될 때 쓴다. React가 급한 update와 덜 급한 update를 나눠 렌더링한다.

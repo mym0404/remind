@@ -1,5 +1,75 @@
 # useDebounce
 
+## API reference
+
+`useDebounce<T>(value, delay)`는 값 변경을 바로 반영하지 않고, 마지막 변경 뒤 `delay`가 지난 값만 돌려주는 Hook이다.
+
+```tsx title="useDebounce.ts"
+import { useEffect, useState } from "react";
+
+export const useDebounce = <T,>(value: T, delay: number): T => {
+  const [debouncedValue, setDebouncedValue] = useState(value);
+
+  useEffect(() => {
+    const timerId = window.setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+
+    return () => {
+      window.clearTimeout(timerId);
+    };
+  }, [value, delay]);
+
+  return debouncedValue;
+};
+```
+
+- `value`: debounce할 원본 값이다. 문자열, 숫자, 객체처럼 어떤 타입이든 받을 수 있다.
+- `delay`: 마지막 변경 뒤 기다릴 시간이다. 단위는 millisecond다.
+- 반환값: `delay` 동안 새 변경이 없을 때 갱신된 debounced value다.
+
+`useEffect` 안에서 `setTimeout`을 걸고 cleanup에서 `clearTimeout`을 호출한다. `value`나 `delay`가 다시 바뀌면 이전 timer를 지우고 새 timer만 남긴다.
+
+```tsx title="SearchInput.tsx"
+const SearchInput = () => {
+  const [query, setQuery] = useState("");
+  const debouncedQuery = useDebounce(query.trim(), 300);
+
+  return (
+    <input
+      value={query}
+      onChange={(event) => setQuery(event.target.value)}
+      placeholder={debouncedQuery}
+    />
+  );
+};
+```
+
+Fetch와 함께 쓸 때 debounce는 요청을 늦출 뿐, 이미 시작된 요청을 취소하지 않는다. 늦게 도착한 응답을 막으려면 요청 effect 안에서 `AbortController`를 따로 둔다.
+
+```tsx title="useSearch.tsx"
+const useSearch = (query: string) => {
+  const debouncedQuery = useDebounce(query.trim(), 400);
+
+  useEffect(() => {
+    if (debouncedQuery === "") {
+      return;
+    }
+
+    const abortController = new AbortController();
+
+    void fetch(`/api/search?q=${encodeURIComponent(debouncedQuery)}`, {
+      signal: abortController.signal,
+    });
+
+    return () => {
+      abortController.abort();
+    };
+  }, [debouncedQuery]);
+};
+
+```
+
 ## 언제 쓰나
 
 입력이 잠깐 멈춘 뒤에만 값이 바뀌어야 할 때 쓴다. 검색, 자동완성, 서버 필터처럼 짧은 시간에 값이 여러 번 바뀌는 화면에 맞다.
@@ -13,7 +83,9 @@ Debounce는 요청 시작만 늦춘다. 이미 시작된 요청은 `AbortControl
 ## 바로 쓰는 코드
 
 ```tsx title="useDebounce.ts"
-const useDebounce = <T,>(value, delay) => {
+import { useEffect, useState } from "react";
+
+export const useDebounce = <T,>(value: T, delay: number): T => {
   const [debouncedValue, setDebouncedValue] = useState(value);
 
   useEffect(() => {

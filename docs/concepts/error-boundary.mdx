@@ -1,5 +1,131 @@
 # Error Boundary
 
+## API reference
+
+Error Boundary는 class component에 `static getDerivedStateFromError`나 `componentDidCatch`를 선언해서 만든다. 자식이 렌더링 중 던진 에러를 잡고, 다음 렌더에서 fallback을 보여주는 것이 기본 흐름이다.
+
+### `static getDerivedStateFromError(error)`
+
+선언은 `static getDerivedStateFromError(error: unknown): Partial<State> | null` 형태다.
+
+- `error`: 자식 컴포넌트가 렌더링 중 던진 값이다.
+- 반환값: fallback을 렌더링하기 위한 state 조각을 반환한다. state를 바꾸지 않을 때는 `null`을 반환한다.
+- 용도: 렌더 단계에서 호출되므로 로그 전송 같은 부수 효과는 넣지 않는다.
+
+```tsx title="ErrorBoundary.tsx"
+type ErrorBoundaryState = {
+  hasError: boolean;
+};
+
+class ErrorBoundary extends React.Component<
+  { fallback: React.ReactNode; children: React.ReactNode },
+  ErrorBoundaryState
+> {
+  state: ErrorBoundaryState = { hasError: false };
+
+  static getDerivedStateFromError(
+    error: unknown,
+  ): Partial<ErrorBoundaryState> {
+    return { hasError: true };
+  }
+
+  render() {
+    return this.state.hasError ? this.props.fallback : this.props.children;
+  }
+}
+```
+
+### `componentDidCatch(error, info)`
+
+선언은 `componentDidCatch(error: unknown, info: React.ErrorInfo): void` 형태다.
+
+- `error`: 자식 컴포넌트가 던진 값이다.
+- `info`: `componentStack`을 담은 객체다.
+- 반환값: 없다. 반환값은 React가 사용하지 않는다.
+- 용도: 에러 리포팅, 로그 전송처럼 commit 이후에 해도 되는 작업을 둔다.
+
+```tsx title="ErrorBoundary.tsx"
+class ErrorBoundary extends React.Component<{
+  onError?: (error: unknown, info: React.ErrorInfo) => void;
+  children: React.ReactNode;
+}> {
+  componentDidCatch(error: unknown, info: React.ErrorInfo) {
+    this.props.onError?.(error, info);
+  }
+
+  render() {
+    return this.props.children;
+  }
+}
+```
+
+### fallback state
+
+fallback은 보통 boundary 내부 state로 결정한다. `getDerivedStateFromError`가 `hasError: true`를 반환하면 다음 렌더에서 `children` 대신 `fallback`을 보여준다.
+
+```tsx title="FallbackState.tsx"
+type ErrorBoundaryProps = {
+  fallback: React.ReactNode;
+  children: React.ReactNode;
+};
+
+type ErrorBoundaryState = {
+  hasError: boolean;
+};
+
+class ErrorBoundary extends React.Component<
+  ErrorBoundaryProps,
+  ErrorBoundaryState
+> {
+  state: ErrorBoundaryState = { hasError: false };
+
+  static getDerivedStateFromError(): Partial<ErrorBoundaryState> {
+    return { hasError: true };
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return this.props.fallback;
+    }
+
+    return this.props.children;
+  }
+}
+```
+
+### reset by key
+
+한 번 실패한 boundary는 내부 state가 남아 있다. 부모에서 `key`를 바꾸면 React가 boundary를 새로 만들고 fallback state도 초기화된다.
+
+```tsx title="ProfileRoute.tsx"
+const ProfileRoute = () => {
+  const [boundaryKey, setBoundaryKey] = React.useState(0);
+
+  return (
+    <ErrorBoundary
+      key={boundaryKey}
+      fallback={
+        <button type="button" onClick={() => setBoundaryKey((key) => key + 1)}>
+          다시 시도
+        </button>
+      }
+    >
+      <ProfilePanel />
+    </ErrorBoundary>
+  );
+};
+```
+
+### 잡지 못하는 에러
+
+Error Boundary는 자식의 렌더링, lifecycle, constructor에서 난 에러를 다룬다. 다음 에러는 직접 잡지 못한다.
+
+- 이벤트 핸들러에서 던진 에러
+- `setTimeout`, `requestAnimationFrame` 같은 비동기 callback의 에러
+- Promise rejection과 `fetch` 실패
+- server-side rendering 중 난 에러
+- boundary 자신이 던진 에러
+
 ## 언제 쓰나
 
 렌더링 중 자식이 던진 에러를 화면 단위 fallback으로 바꿀 때 쓴다. route, page, 중요한 panel처럼 사용자가 다시 시도하거나 벗어날 수 있는 단위에 둔다.

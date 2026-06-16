@@ -1,5 +1,209 @@
 # Form 구현
 
+## API reference
+
+### `form onSubmit`
+
+`onSubmit`은 form 제출 이벤트를 받는다. 브라우저의 기본 submit 이동을 막고, 현재 form 값으로 validation과 저장을 시작하는 지점이다.
+
+```tsx title="form-submit-declaration.tsx"
+type FormSubmitHandler = React.FormEventHandler<HTMLFormElement>;
+
+type ProfileFormProps = {
+  onSubmit: FormSubmitHandler;
+};
+```
+
+- 인자: `event`는 `React.FormEvent<HTMLFormElement>`다.
+- 속성: `event.currentTarget`은 handler가 붙은 `<form>`이다.
+- 주의: `event.preventDefault()`를 호출해야 SPA 안에서 페이지 이동 없이 처리한다.
+
+```tsx title="form-submit-example.tsx"
+const ProfileForm = () => {
+  const submit: React.FormEventHandler<HTMLFormElement> = (event) => {
+    event.preventDefault();
+
+    const form = event.currentTarget;
+    console.log(new FormData(form).get("name"));
+  };
+
+  return (
+    <form onSubmit={submit}>
+      <input name="name" />
+      <button type="submit">저장</button>
+    </form>
+  );
+};
+```
+
+### `button type`
+
+form 안의 `<button>`은 `type`을 생략하면 submit 버튼처럼 동작한다. 제출이 아닌 버튼에는 `type="button"`을 명시한다.
+
+```tsx title="button-type-declaration.tsx"
+type ButtonType = "button" | "submit" | "reset";
+
+type FormButtonProps = {
+  type?: ButtonType;
+};
+```
+
+- 속성: `type="submit"`은 가장 가까운 form을 제출한다.
+- 속성: `type="button"`은 클릭 이벤트만 실행한다.
+- 속성: `type="reset"`은 native reset을 실행한다.
+
+```tsx title="button-type-example.tsx"
+const FormActions = ({ reset }: { reset: () => void }) => (
+  <>
+    <button type="button" onClick={reset}>
+      초기화
+    </button>
+    <button type="submit">저장</button>
+  </>
+);
+```
+
+### `FormEvent`
+
+`FormEvent`는 React가 감싼 form 이벤트 타입이다. submit handler에서는 `HTMLFormElement`를 generic으로 넣어 `currentTarget`을 form으로 좁힌다.
+
+```tsx title="form-event-declaration.tsx"
+type FormEvent = React.FormEvent<HTMLFormElement>;
+type FormEventHandler = (event: FormEvent) => void;
+```
+
+- 인자: `event.currentTarget`은 `HTMLFormElement`다.
+- 인자: `event.target`은 이벤트가 시작된 실제 요소일 수 있다.
+- 주의: form 자체가 필요하면 `currentTarget`을 기준으로 읽는다.
+
+```tsx title="form-event-example.tsx"
+const submit: React.FormEventHandler<HTMLFormElement> = (event) => {
+  event.preventDefault();
+
+  const form = event.currentTarget;
+  const data = new FormData(form);
+  console.log(data.get("name"));
+};
+```
+
+### `FormData`
+
+`FormData`는 form control의 `name`을 key로 삼아 현재 DOM 값을 읽는다. uncontrolled form이나 제출 시점의 전체 값을 모을 때 간단하다.
+
+```tsx title="form-data-declaration.tsx"
+declare class FormData {
+  constructor(form?: HTMLFormElement, submitter?: HTMLElement | null);
+  get(name: string): FormDataEntryValue | null;
+  getAll(name: string): FormDataEntryValue[];
+  set(name: string, value: string | Blob, fileName?: string): void;
+}
+```
+
+- 인자: 생성자에는 `HTMLFormElement`를 넣는다.
+- 속성: `get(name)`은 첫 값을 반환하고, 없으면 `null`을 반환한다.
+- 주의: checkbox는 checked 상태일 때만 값이 들어간다.
+
+```tsx title="form-data-example.tsx"
+const submit: React.FormEventHandler<HTMLFormElement> = (event) => {
+  event.preventDefault();
+
+  const data = new FormData(event.currentTarget);
+  const name = String(data.get("name") ?? "");
+  const agree = data.get("agree") === "yes";
+
+  console.log({ name, agree });
+};
+```
+
+### `input value`와 `onChange`
+
+text input을 controlled로 쓰면 `value`는 React state에서 내려주고, `onChange`에서 다음 문자열을 읽어 state를 갱신한다.
+
+```tsx title="text-input-declaration.tsx"
+type TextInputProps = {
+  value: string;
+  onChange: (nextValue: string) => void;
+};
+```
+
+- 속성: `value`는 화면에 보일 현재 문자열이다.
+- 인자: `onChange`의 `event.currentTarget.value`는 다음 문자열이다.
+- 주의: `value`를 주면 `onChange`도 함께 둔다.
+
+```tsx title="text-input-example.tsx"
+const NameInput = ({ value, onChange }: TextInputProps) => (
+  <input
+    value={value}
+    onChange={(event) => onChange(event.currentTarget.value)}
+  />
+);
+```
+
+### `checkbox checked`
+
+checkbox의 현재 선택 상태는 `value`가 아니라 `checked`로 제어한다. 변경 값도 `event.currentTarget.checked`에서 읽는다.
+
+```tsx title="checkbox-declaration.tsx"
+type CheckboxProps = {
+  checked: boolean;
+  onCheckedChange: (nextChecked: boolean) => void;
+};
+```
+
+- 속성: `checked`는 선택 여부다.
+- 인자: `event.currentTarget.checked`는 다음 선택 여부다.
+- 주의: checkbox의 `value`는 제출될 문자열이고, 선택 상태가 아니다.
+
+```tsx title="checkbox-example.tsx"
+const AgreeCheckbox = ({ checked, onCheckedChange }: CheckboxProps) => (
+  <input
+    type="checkbox"
+    checked={checked}
+    onChange={(event) => onCheckedChange(event.currentTarget.checked)}
+  />
+);
+```
+
+### `select value`
+
+`select`도 controlled input처럼 `value`와 `onChange`를 함께 둔다. DOM에서 읽은 값은 문자열이므로 union type에 넣기 전에 좁힌다.
+
+```tsx title="select-declaration.tsx"
+type Role = "frontend" | "backend" | "designer";
+
+type RoleSelectProps = {
+  value: Role;
+  onValueChange: (nextValue: Role) => void;
+};
+```
+
+- 속성: `value`는 현재 선택된 option의 value다.
+- 인자: `event.currentTarget.value`는 다음 option value 문자열이다.
+- 주의: union type state에는 허용된 값인지 확인한 뒤 저장한다.
+
+```tsx title="select-example.tsx"
+const roles = ["frontend", "backend", "designer"] as const;
+
+const RoleSelect = ({ value, onValueChange }: RoleSelectProps) => (
+  <select
+    value={value}
+    onChange={(event) => {
+      const nextRole = roles.find((role) => role === event.currentTarget.value);
+
+      if (nextRole) {
+        onValueChange(nextRole);
+      }
+    }}
+  >
+    {roles.map((role) => (
+      <option key={role} value={role}>
+        {role}
+      </option>
+    ))}
+  </select>
+);
+```
+
 ## 언제 쓰나
 
 회원 정보, 문의, 주문처럼 여러 입력값을 한 번에 제출할 때 쓴다.

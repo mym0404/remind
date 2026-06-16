@@ -1,5 +1,87 @@
 # Form 접근성
 
+## API reference
+
+폼 접근성 API는 이름, 설명, 오류, 그룹 의미를 DOM에서 직접 이어 주는 일에 쓴다. React에서는 `useId`로 안정적인 `id`를 만들고, 렌더링 중인 요소의 `id`만 참조한다.
+
+- `label htmlFor={inputId}` + `input id={inputId}`: 필드 이름을 input과 연결한다.
+- `aria-describedby={descriptionIds}`: 도움말, 제한 조건, 오류 메시지처럼 이름이 아닌 설명을 연결한다.
+- `aria-invalid={hasError ? true : undefined}`: 현재 값이 invalid일 때만 오류 상태를 알린다.
+- `role="alert"`: 사용자가 바로 알아야 하는 오류를 알린다.
+- `role="status"`: 저장 완료, 자동 저장 중처럼 급하지 않은 상태 변화를 알린다.
+- `required`: native form control의 필수 입력 제약이다.
+- `aria-required`: native 제약을 걸 수 없는 custom control에서만 필수 상태를 알린다.
+- `fieldset` + `legend`: radio, checkbox처럼 한 질문에 여러 control이 묶일 때 그룹 이름을 만든다.
+
+```tsx title="AccessibleTextField.tsx"
+const describedBy = (ids: (string | undefined)[]) =>
+  ids.filter((id): id is string => Boolean(id)).join(" ") || undefined;
+
+const AccessibleTextField = ({ error }: { error?: string }) => {
+  const inputId = useId();
+  const helpId = useId();
+  const errorId = useId();
+
+  return (
+    <div>
+      <label htmlFor={inputId}>이메일</label>
+      <input
+        id={inputId}
+        type="email"
+        required
+        aria-invalid={error ? true : undefined}
+        aria-describedby={describedBy([
+          helpId,
+          error ? errorId : undefined,
+        ])}
+      />
+      <p id={helpId}>답변을 받을 이메일을 입력하세요.</p>
+      {error ? (
+        <p id={errorId} role="alert">
+          {error}
+        </p>
+      ) : undefined}
+    </div>
+  );
+};
+```
+
+`aria-describedby`는 공백으로 나눈 `id` 목록을 받는다. 오류 메시지를 조건부 렌더링한다면, 메시지가 없을 때 해당 `id`도 빼야 한다.
+
+```tsx title="FormStatus.tsx"
+const FormStatus = ({ message }: { message?: string }) => (
+  <p role="status">{message}</p>
+);
+```
+
+`role="alert"`와 `role="status"`는 목적이 다르다. 오류처럼 즉시 행동이 필요한 메시지는 `alert`, 저장 상태처럼 흐름을 끊지 않아도 되는 메시지는 `status`에 둔다.
+
+```tsx title="ContactPreference.tsx"
+const ContactPreference = () => (
+  <fieldset>
+    <legend>연락 방법</legend>
+    <label>
+      <input type="radio" name="contactMethod" value="email" required />
+      이메일
+    </label>
+    <label>
+      <input type="radio" name="contactMethod" value="phone" />
+      전화
+    </label>
+  </fieldset>
+);
+```
+
+native control에는 `required`를 먼저 쓴다. 직접 만든 combobox, switch, radio group처럼 HTML 제약을 그대로 쓸 수 없는 control에서만 `aria-required`를 붙인다.
+
+```tsx title="CustomRequiredControl.tsx"
+const CustomRequiredControl = () => (
+  <div role="combobox" aria-expanded={false} aria-required="true">
+    지역 선택
+  </div>
+);
+```
+
 ## 언제 쓰나
 
 필드 이름, 도움말, 오류, 필수 여부를 입력 요소와 연결해야 할 때 쓴다. 제출 실패 후에는 첫 invalid field로 focus를 보낸다.

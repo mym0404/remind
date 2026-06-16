@@ -1,5 +1,120 @@
 # Compound Component 패턴
 
+## API reference
+
+Compound Component는 Context API로 Root의 상태를 하위 컴포넌트에 나눠 준다. 외부에 노출하는 모양은 `Tabs.Root` 같은 static property 방식이나 `TabsRoot`, `TabsList` 같은 named subcomponent 방식 중 하나로 정한다.
+
+### `createContext`
+
+- 선언: `createContext<T>(defaultValue)`
+- 인자: Provider가 없을 때 읽을 기본값이다.
+- 반환값: `Provider`를 포함한 Context 객체다.
+
+```tsx
+type TabsContextValue = {
+  selectedValue: string;
+  selectValue: (nextValue: string) => void;
+};
+
+const TabsContext = createContext<TabsContextValue | undefined>(undefined);
+```
+
+`undefined`를 기본값으로 두면 하위 컴포넌트가 Root 밖에서 쓰였는지 바로 검사할 수 있다.
+
+### `useContext`
+
+- 선언: `useContext(SomeContext)`
+- 인자: `createContext`가 반환한 Context 객체다.
+- 반환값: 가장 가까운 Provider의 `value`다.
+
+```tsx
+const useTabs = () => {
+  const context = useContext(TabsContext);
+
+  if (context === undefined) {
+    throw new Error("Tabs component must be used within Tabs.Root");
+  }
+
+  return context;
+};
+```
+
+하위 컴포넌트는 이 훅만 통과해서 공유 상태를 읽는다. 그래야 Provider 누락 검사와 타입 좁히기가 한곳에 모인다.
+
+### Provider `value`
+
+- 선언: `<SomeContext.Provider value={contextValue}>`
+- 인자: 하위 컴포넌트가 공유할 값이다.
+- 반환값: `children`을 감싼 React 엘리먼트다.
+
+```tsx
+const TabsRoot = ({ children }: { children: ReactNode }) => {
+  const [selectedValue, setSelectedValue] = useState("overview");
+  const contextValue = useMemo(
+    () => ({ selectedValue, selectValue: setSelectedValue }),
+    [selectedValue],
+  );
+
+  return (
+    <TabsContext.Provider value={contextValue}>{children}</TabsContext.Provider>
+  );
+};
+```
+
+`value`에 객체를 바로 만들면 Root가 렌더링될 때마다 참조가 바뀐다. 값이 상태나 콜백을 담는다면 `useMemo`로 묶어 불필요한 하위 렌더링을 줄인다.
+
+### `children`
+
+- 선언: `children?: ReactNode`
+- 인자: 호출하는 쪽이 조립한 하위 컴포넌트들이다.
+- 반환값: Root가 Provider 아래에 그대로 렌더링하는 내용이다.
+
+```tsx
+const TabsList = ({ children }: { children: ReactNode }) => (
+  <div role="tablist">{children}</div>
+);
+
+const ProductTabs = () => (
+  <Tabs.Root>
+    <Tabs.List>
+      <Tabs.Trigger value="overview">개요</Tabs.Trigger>
+    </Tabs.List>
+  </Tabs.Root>
+);
+```
+
+Root는 하위 컴포넌트의 개수와 순서를 강제하지 않는다. 구조는 사용하는 쪽이 정하고, 상태 연결만 Context가 맡는다.
+
+### Static property와 named subcomponent
+
+- 선언: `const Tabs = { Root, List, Trigger, Content }`
+- 인자: Root 컴포넌트와 함께 노출할 하위 컴포넌트들이다.
+- 반환값: `Tabs.Root` 또는 `Tabs.List`처럼 접근할 수 있는 컴포넌트 묶음이다.
+
+```tsx
+export const TabsRoot = ({ children }: { children: ReactNode }) => (
+  <div>{children}</div>
+);
+export const TabsList = ({ children }: { children: ReactNode }) => (
+  <div role="tablist">{children}</div>
+);
+export const TabsTrigger = ({ children }: { children: ReactNode }) => (
+  <button type="button">{children}</button>
+);
+export const TabsContent = ({ children }: { children: ReactNode }) => (
+  <section>{children}</section>
+);
+
+export const Tabs = {
+  Root: TabsRoot,
+  List: TabsList,
+  Trigger: TabsTrigger,
+  Content: TabsContent,
+};
+```
+
+객체로 묶으면 사용하는 쪽에서 한 기능의 부품이라는 점이 잘 보인다. named export를 함께 열어 두면 트리 셰이킹이나 테스트에서 필요한 컴포넌트만 가져오기 쉽다.
+
 ## 언제 쓰나
 
 Compound Component는 `Tabs.Root`, `Tabs.List`, `Tabs.Trigger`, `Tabs.Content`처럼 한 기능을 여러 조각으로 조립할 때 쓴다. 구조는 사용하는 쪽이 정하고, 공유 상태는 Root가 Context로 제공한다.

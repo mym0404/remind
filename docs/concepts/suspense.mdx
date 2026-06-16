@@ -1,5 +1,82 @@
 # Suspense
 
+## API reference
+
+### `<Suspense fallback={...}>`
+
+`Suspense`는 자식 컴포넌트가 suspend되면 `fallback`을 먼저 렌더링하고, 준비가 끝나면 실제 콘텐츠로 바꾼다. `fallback`은 React node라면 무엇이든 받을 수 있지만, 보통 skeleton이나 짧은 loading 문구처럼 가벼운 UI를 둔다.
+
+```tsx
+import { Suspense } from "react";
+
+const ProfileShell = ({ children }: { children: React.ReactNode }) => (
+  <Suspense fallback={<p aria-busy="true">불러오는 중입니다.</p>}>
+    {children}
+  </Suspense>
+);
+```
+
+### `lazy(() => import(...))`
+
+`lazy`는 동적 import를 React 컴포넌트로 감싼다. import가 끝나기 전에는 렌더링 중 suspend되므로 가까운 `Suspense` boundary의 `fallback`이 보인다.
+
+```tsx
+import { lazy, Suspense } from "react";
+
+const SettingsPanel = lazy(() => import("./SettingsPanel"));
+
+const SettingsPage = () => (
+  <Suspense fallback={<p aria-busy="true">설정을 불러오는 중입니다.</p>}>
+    <SettingsPanel />
+  </Suspense>
+);
+```
+
+### Promise 또는 resource로 suspend하기
+
+렌더링 중 읽은 Promise나 resource가 아직 준비되지 않았으면 컴포넌트가 suspend된다. Promise는 boundary 밖에서 만들고, 컴포넌트 안에서는 `use()`처럼 React가 추적할 수 있는 API로 읽는다.
+
+```tsx
+import { Suspense, use } from "react";
+
+type User = {
+  id: string;
+  name: string;
+};
+
+const UserName = ({ userPromise }: { userPromise: Promise<User> }) => {
+  const user = use(userPromise);
+
+  return <p>{user.name}</p>;
+};
+
+const UserCard = ({ userPromise }: { userPromise: Promise<User> }) => (
+  <Suspense fallback={<p aria-busy="true">사용자를 불러오는 중입니다.</p>}>
+    <UserName userPromise={userPromise} />
+  </Suspense>
+);
+```
+
+### Error Boundary와 함께 쓰기
+
+`Suspense`는 pending만 처리한다. lazy import 실패, rejected Promise, 렌더링 에러는 Error Boundary가 받도록 바깥에서 감싼다.
+
+```tsx
+import { lazy, Suspense } from "react";
+
+const ReportPanel = lazy(() => import("./ReportPanel"));
+
+const ReportPage = () => (
+  <ErrorBoundary
+    fallback={<section role="alert">리포트를 불러오지 못했습니다.</section>}
+  >
+    <Suspense fallback={<p aria-busy="true">리포트를 불러오는 중입니다.</p>}>
+      <ReportPanel />
+    </Suspense>
+  </ErrorBoundary>
+);
+```
+
 ## 언제 쓰나
 
 Suspense는 자식이 아직 렌더링할 준비가 안 되었을 때 fallback을 보여주는 loading boundary다. `React.lazy`나 Suspense를 지원하는 data source를 기다릴 때 쓴다.

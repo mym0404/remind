@@ -1,5 +1,120 @@
 # TypeScript 타입 설계
 
+## API reference
+
+타입은 값의 모양을 이름 붙이고, 필요한 위치에서 좁혀 쓰려고 만든다.
+
+### Type alias
+
+`type`은 객체, 함수, primitive 조합에 이름을 붙인다.
+
+```ts title="type-alias.ts"
+type UserId = string;
+
+type User = {
+  id: UserId;
+  name: string;
+  role: "admin" | "member";
+};
+
+type SelectUser = (id: UserId) => void;
+```
+
+### Union
+
+`|`는 값이 여러 후보 중 하나일 때 쓴다.
+
+```ts title="union.ts"
+type Role = "admin" | "member";
+type SortDirection = "asc" | "desc";
+type InputValue = string | number | undefined;
+
+const canEdit = (role: Role) => role === "admin";
+```
+
+### Discriminated union
+
+공통 판별 필드를 두면 분기 안에서 타입이 좁혀진다. 보통 `status`, `type`, `kind` 같은 이름을 쓴다.
+
+```ts title="async-state.ts"
+type AsyncState<T> =
+  | { status: "idle" }
+  | { status: "loading" }
+  | { status: "success"; data: T }
+  | { status: "error"; message: string };
+
+const getStatusLabel = (state: AsyncState<User>) => {
+  if (state.status === "success") {
+    return state.data.name;
+  }
+
+  if (state.status === "error") {
+    return state.message;
+  }
+
+  return "대기 중";
+};
+```
+
+### Generic function
+
+generic은 호출하는 쪽에서 값의 타입을 넣어 재사용한다.
+
+```ts title="generic-function.ts"
+type ApiResponse<T> = {
+  data: T;
+};
+
+const unwrapData = <T,>(response: ApiResponse<T>) => {
+  return response.data;
+};
+
+const user = unwrapData<User>({
+  data: { id: "1", name: "Dana", role: "member" },
+});
+```
+
+### Generic component props
+
+컴포넌트 props도 generic으로 받을 수 있다. 리스트처럼 항목 모양만 바뀌고 렌더링 흐름은 같은 경우에 맞다.
+
+```tsx title="generic-props.tsx"
+type ListProps<T> = {
+  items: T[];
+  renderItem: (item: T) => ReactNode;
+};
+
+const List = <T,>({ items, renderItem }: ListProps<T>) => {
+  return <ul>{items.map((item) => renderItem(item))}</ul>;
+};
+
+const UserList = ({ users }: { users: User[] }) => {
+  return <List items={users} renderItem={(user) => <li key={user.id}>{user.name}</li>} />;
+};
+```
+
+### React helper types
+
+`ComponentProps`는 기존 요소나 컴포넌트의 props를 가져올 때 쓴다. `useState<T>`는 초기값만으로 상태 타입을 충분히 추론하지 못할 때 붙인다.
+
+```tsx title="react-helper-types.tsx"
+type ButtonProps = ComponentProps<"button">;
+
+const SaveButton = (props: ButtonProps) => {
+  return <button type="button" {...props} />;
+};
+
+const UserPanel = () => {
+  const [state, setState] = useState<AsyncState<User>>({ status: "idle" });
+
+  return (
+    <SaveButton onClick={() => setState({ status: "loading" })}>
+      {state.status}
+    </SaveButton>
+  );
+};
+```
+
 ## 언제 쓰나
 
 API 응답, 리스트 항목, props, 이벤트 핸들러처럼 데이터 경계가 흐려지기 쉬운 곳에 쓴다.

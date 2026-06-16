@@ -1,5 +1,134 @@
 # Autocomplete
 
+## API reference
+
+autocomplete은 input에 DOM focus를 둔 채 추천 목록만 함께 갱신한다. input은 combobox, 목록은 listbox, 각 항목은 option으로 노출한다.
+
+| 대상 | role / 속성 | 기준 |
+| --- | --- | --- |
+| input | `role="combobox"` | 사용자가 직접 타이핑하는 제어 지점이다. |
+| input | `aria-expanded` | 목록이 보이면 `true`, 닫혀 있으면 `false`다. |
+| input | `aria-controls` | 연결할 listbox의 `id`를 가리킨다. |
+| input | `aria-activedescendant` | 방향키로 가리키는 option의 `id`를 넣는다. |
+| listbox | `role="listbox"` | 추천 항목 묶음이다. |
+| option | `role="option"` | 선택 가능한 항목이다. |
+| option | `aria-selected` | 현재 active 항목이면 `true`다. |
+
+키보드는 `ArrowDown`, `ArrowUp`, `Enter`, `Escape`만 먼저 처리해도 충분하다. 한글 조합 중에는 `event.nativeEvent.isComposing`이 `true`일 수 있으므로 `Enter` 선택을 바로 실행하지 않는다.
+
+제어 input은 `value`, `onChange`, `onKeyDown`, `onCompositionStart`, `onCompositionEnd`를 함께 둔다. `onChange`는 화면 값을 즉시 바꾸고 선택값을 비운다. 목록 조회는 debounce된 값으로 따로 보낸다.
+
+```tsx title="declaration.tsx"
+type AutocompleteOption = {
+  id: string;
+  label: string;
+};
+
+type AutocompleteInputProps = {
+  value: string;
+  options: AutocompleteOption[];
+  isOpen: boolean;
+  activeIndex?: number;
+  onValueChange: (value: string) => void;
+  onOpenChange: (isOpen: boolean) => void;
+  onActiveIndexChange: (index?: number) => void;
+  onSelect: (option: AutocompleteOption) => void;
+};
+```
+
+```tsx title="usage.tsx"
+const AutocompleteInput = ({
+  value,
+  options,
+  isOpen,
+  activeIndex,
+  onValueChange,
+  onOpenChange,
+  onActiveIndexChange,
+  onSelect,
+}: AutocompleteInputProps) => {
+  const inputId = useId();
+  const listboxId = useId();
+  const [isComposing, setIsComposing] = useState(false);
+  const activeOption =
+    activeIndex === undefined ? undefined : options[activeIndex];
+  const activeOptionId =
+    activeIndex === undefined ? undefined : `${listboxId}-${activeIndex}`;
+  const lastIndex = options.length - 1;
+
+  return (
+    <>
+      <input
+        id={inputId}
+        role="combobox"
+        aria-autocomplete="list"
+        aria-expanded={isOpen}
+        aria-controls={listboxId}
+        aria-activedescendant={activeOptionId}
+        value={value}
+        onChange={(event) => {
+          onValueChange(event.target.value);
+        }}
+        onKeyDown={(event) => {
+          if (isComposing || event.nativeEvent.isComposing) return;
+
+          if (event.key === "Escape") {
+            event.preventDefault();
+            onOpenChange(false);
+            onActiveIndexChange(undefined);
+            return;
+          }
+
+          if (options.length === 0) return;
+
+          if (event.key === "ArrowDown") {
+            event.preventDefault();
+            onOpenChange(true);
+            const nextIndex =
+              activeIndex === undefined ? 0 : Math.min(activeIndex + 1, lastIndex);
+            onActiveIndexChange(nextIndex);
+          }
+
+          if (event.key === "ArrowUp") {
+            event.preventDefault();
+            onOpenChange(true);
+            const nextIndex =
+              activeIndex === undefined ? lastIndex : Math.max(activeIndex - 1, 0);
+            onActiveIndexChange(nextIndex);
+          }
+
+          if (event.key === "Enter" && activeOption) {
+            event.preventDefault();
+            onSelect(activeOption);
+          }
+        }}
+        onCompositionStart={() => {
+          setIsComposing(true);
+        }}
+        onCompositionEnd={() => {
+          setIsComposing(false);
+        }}
+      />
+
+      {isOpen && (
+        <ul id={listboxId} role="listbox">
+          {options.map((option, index) => (
+            <li
+              id={`${listboxId}-${index}`}
+              key={option.id}
+              role="option"
+              aria-selected={index === activeIndex}
+            >
+              {option.label}
+            </li>
+          ))}
+        </ul>
+      )}
+    </>
+  );
+};
+```
+
 ## 언제 쓰나
 
 입력 중 추천 값을 보여줘야 할 때 쓴다. 화면 값은 즉시 반영하고, API 요청은 debounce된 값으로 보낸다.

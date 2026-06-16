@@ -1,5 +1,119 @@
 # Context + Provider
 
+## API reference
+
+### `createContext`
+
+Context 객체를 만든다.
+
+```ts
+declare function createContext<T>(defaultValue: T): Context<T>;
+```
+
+- 인자: `defaultValue`는 위쪽에 Provider가 없을 때만 쓰는 fallback 값이다.
+- 반환값: `Context<T>` 객체다. 이 객체의 Provider에 값을 넣고, `useContext`로 읽는다.
+
+```tsx
+type AuthContextValue = {
+  userName: string;
+  logout: () => void;
+};
+
+const AuthContext = createContext<AuthContextValue | undefined>(undefined);
+```
+
+기본값은 Provider 값을 대신 초기화하는 값이 아니다. Provider가 없을 때만 읽힌다. 그래서 앱 상태 Context는 `undefined`를 기본값으로 두고 guard를 두는 쪽이 실수를 빨리 잡기 쉽다.
+
+### `Context.Provider`와 `value`
+
+Provider는 하위 컴포넌트에 Context 값을 공급한다.
+
+```tsx
+type ProviderProps = {
+  children: React.ReactNode;
+};
+
+const AuthProvider = ({ children }: ProviderProps) => {
+  const value = { userName: "mj", logout: () => {} };
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+};
+```
+
+- 인자: `value`에는 하위에서 읽을 값을 넣는다.
+- 반환값: Provider 자체는 React element를 반환한다. 하위 컴포넌트는 가장 가까운 Provider의 `value`를 읽는다.
+
+### `useContext`
+
+현재 컴포넌트 위쪽에서 가장 가까운 Provider 값을 읽는다.
+
+```ts
+declare function useContext<T>(context: Context<T>): T;
+```
+
+- 인자: `context`에는 `createContext`가 반환한 Context 객체를 넣는다.
+- 반환값: 가장 가까운 Provider의 `value`다. Provider가 없으면 `createContext`의 `defaultValue`를 반환한다.
+
+```tsx
+const Header = () => {
+  const auth = useContext(AuthContext);
+
+  return <span>{auth?.userName ?? "guest"}</span>;
+};
+```
+
+### Provider guard pattern
+
+필수 Provider가 빠졌을 때는 custom hook에서 바로 실패시키는 편이 낫다.
+
+```tsx
+const useAuth = () => {
+  const auth = useContext(AuthContext);
+
+  if (auth === undefined) {
+    throw new Error("useAuth must be used within AuthProvider");
+  }
+
+  return auth;
+};
+```
+
+- 인자: custom hook은 보통 인자를 받지 않고 내부에서 Context를 읽는다.
+- 반환값: `undefined`가 제거된 Context 값이다.
+
+```tsx
+const LogoutButton = () => {
+  const { logout } = useAuth();
+
+  return (
+    <button type="button" onClick={logout}>
+      로그아웃
+    </button>
+  );
+};
+```
+
+### Memoized value
+
+Provider의 `value`가 객체나 함수 묶음이면 `useMemo`로 참조를 고정한다. 그래야 값이 그대로일 때 구독 컴포넌트의 불필요한 렌더링을 줄일 수 있다.
+
+```tsx
+const AuthProvider = ({ children }: ProviderProps) => {
+  const [userName, setUserName] = useState("mj");
+  const logout = useCallback(() => setUserName("guest"), []);
+
+  const value = useMemo(
+    () => ({ userName, logout }),
+    [userName, logout],
+  );
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+};
+```
+
+- 인자: `useMemo` 첫 번째 인자는 value 생성 함수, 두 번째 인자는 value가 바뀌어야 하는 의존성 배열이다.
+- 반환값: 의존성이 같으면 이전 객체 참조를 재사용한 값이다.
+
 ## 언제 쓰나
 
 Context는 멀리 떨어진 컴포넌트가 같은 상태나 action을 공유할 때만 쓴다. 한두 단계 props면 props가 더 단순하다.

@@ -1,5 +1,101 @@
 # MutationObserver
 
+## API reference
+
+`MutationObserver`는 DOM 변경을 비동기로 모아 callback에 넘긴다. React에서는 `useEffect` 안에서 만들고, cleanup에서 `disconnect()`로 끊는 방식이 기본이다.
+
+```ts title="declarations.ts"
+const observer = new MutationObserver(callback);
+
+observer.observe(target, options);
+observer.disconnect();
+
+const records = observer.takeRecords();
+```
+
+### `new MutationObserver(callback)`
+
+callback은 DOM 변경이 생긴 뒤 microtask 시점에 호출된다.
+
+```ts
+const observer = new MutationObserver((records, observer) => {
+  records.forEach((record) => {
+    if (record.type === "childList") {
+      console.log(record.addedNodes, record.removedNodes);
+    }
+  });
+});
+```
+
+- `records`: 이번 callback에 모인 `MutationRecord[]`다.
+- `observer`: callback을 호출한 observer 자신이다.
+
+### `MutationRecord`
+
+callback으로 받은 record는 어떤 DOM 변경이 있었는지 담는다.
+
+- `type`: `"childList"`, `"attributes"`, `"characterData"` 중 하나다.
+- `target`: 변경이 일어난 node다.
+- `addedNodes`: 추가된 node 목록이다.
+- `removedNodes`: 제거된 node 목록이다.
+- `previousSibling`: 추가되거나 제거된 node의 이전 형제 node다.
+- `nextSibling`: 추가되거나 제거된 node의 다음 형제 node다.
+- `attributeName`: 바뀐 attribute 이름이다.
+- `attributeNamespace`: namespace가 있는 attribute의 namespace다.
+- `oldValue`: 이전 값이다. 별도 old value 옵션을 켰을 때만 의미가 있다.
+
+### `observe(target, options)`
+
+`target`은 감시할 `Node`다. `options`에는 어떤 변경을 볼지 적는다. `childList`, `attributes`, `characterData` 중 하나는 켜야 한다.
+
+```ts
+observer.observe(rootElement, {
+  childList: true,
+  attributes: true,
+  attributeFilter: ["aria-expanded", "data-state"],
+  subtree: true,
+});
+```
+
+`MutationObserverInit`에서 자주 쓰는 옵션은 다음과 같다.
+
+- `childList`: 자식 node 추가와 제거를 감지한다.
+- `attributes`: attribute 변경을 감지한다.
+- `subtree`: target 아래 모든 하위 node까지 감시한다.
+- `attributeFilter`: 지정한 attribute 이름만 감시한다.
+- `characterData`: text node의 내용 변경을 감지한다.
+
+### cleanup과 남은 record
+
+`disconnect()`는 감시를 멈춘다. `takeRecords()`는 아직 callback으로 전달되지 않은 record를 즉시 꺼낸다.
+
+```tsx title="useDomMutation.tsx"
+const useDomMutation = (ref: React.RefObject<HTMLElement | null>) => {
+  useEffect(() => {
+    const target = ref.current;
+
+    if (!target) {
+      return;
+    }
+
+    const observer = new MutationObserver((records) => {
+      const hasChildChange = records.some(({ type }) => type === "childList");
+
+      if (hasChildChange) {
+        console.log("children changed");
+      }
+    });
+
+    observer.observe(target, { childList: true });
+
+    return () => {
+      observer.takeRecords();
+      observer.disconnect(); // [!code highlight]
+    };
+  }, [ref]);
+};
+```
+
 ## 언제 쓰나
 
 `MutationObserver`는 DOM node가 추가되거나 제거되는 순간, 또는 `class`, `style`, `aria-*`, `data-*` 같은 attribute가 바뀌는 순간을 감지할 때 쓴다. React state로 DOM을 만들고 있다면 state를 기준으로 처리하는 편이 먼저다.

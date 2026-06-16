@@ -1,5 +1,130 @@
 # Optimistic Update
 
+## API reference
+
+로컬 optimistic update는 서버 함수의 입력, 임시 식별자, 되돌릴 기준을 먼저 정해두면 단순해진다. `useState`로 충분한 경우가 많고, 요청 상태가 여러 갈래로 늘어나면 `useReducer`로 액션을 모은다.
+
+```tsx title="optimistic-types.ts"
+type RequestId = string;
+type TempId = `temp:${string}`;
+
+type Comment = {
+  id: string;
+  status?: "saving" | "failed";
+  text: string;
+};
+
+type CreateCommentInput = {
+  requestId: RequestId;
+  signal?: AbortSignal;
+  tempId: TempId;
+  text: string;
+};
+
+type RollbackSnapshot = {
+  requestId: RequestId;
+  tempId: TempId;
+};
+
+const createComment = async ({
+  requestId,
+  signal,
+  tempId,
+  text,
+}: CreateCommentInput) => {
+  const response = await fetch("/api/comments", {
+    body: JSON.stringify({ clientId: tempId, requestId, text }),
+    method: "POST",
+    signal,
+  });
+
+  if (!response.ok) {
+    throw new Error("댓글을 저장하지 못했습니다.");
+  }
+
+  return (await response.json()) as Comment;
+};
+```
+
+`requestId`는 이 요청의 성공·실패를 구분하는 값이고, `tempId`는 서버 `id`가 오기 전까지 화면에서 쓰는 항목 `id`다. 새 항목 추가처럼 되돌릴 값이 단순하면 snapshot에는 제거할 `tempId`만 남겨도 된다. 기존 항목 수정은 전체 목록 대신 수정 전 항목 하나를 snapshot으로 보관한다.
+
+```tsx title="CommentForm.tsx"
+const CommentForm = ({
+  initialComments,
+}: {
+  initialComments: Comment[];
+}) => {
+  const [comments, setComments] = useState(initialComments);
+
+  const submitComment = async (text: string) => {
+    const requestId = crypto.randomUUID();
+    const tempId: TempId = `temp:${requestId}`;
+    const rollback: RollbackSnapshot = { requestId, tempId };
+    const controller = new AbortController();
+
+    setComments((currentComments) => [
+      ...currentComments,
+      { id: tempId, status: "saving", text },
+    ]);
+
+    try {
+      const savedComment = await createComment({
+        requestId,
+        signal: controller.signal,
+        tempId,
+        text,
+      });
+
+      setComments((currentComments) =>
+        currentComments.map((comment) =>
+          comment.id === tempId ? savedComment : comment,
+        ),
+      );
+    } catch {
+      setComments((currentComments) =>
+        currentComments.filter((comment) => comment.id !== rollback.tempId),
+      );
+    }
+  };
+
+  return <section>{/* ... */}</section>;
+};
+```
+
+`AbortController`는 취소 버튼, 화면 이탈, 검색어 변경처럼 이전 요청을 실제로 중단해야 할 때만 붙인다. 단순 저장 버튼에는 중복 요청 차단만으로 충분한 경우가 많다.
+
+상태 전이가 많아지면 reducer에 optimistic 추가, 확정, rollback을 모은다.
+
+```tsx title="comments-reducer.tsx"
+type CommentsAction =
+  | { comment: Comment; type: "optimistic:add" }
+  | { savedComment: Comment; tempId: TempId; type: "commit:add" }
+  | { tempId: TempId; type: "rollback:add" };
+
+const commentsReducer = (comments: Comment[], action: CommentsAction) => {
+  switch (action.type) {
+    case "optimistic:add":
+      return [...comments, action.comment];
+    case "commit:add":
+      return comments.map((comment) =>
+        comment.id === action.tempId ? action.savedComment : comment,
+      );
+    case "rollback:add":
+      return comments.filter((comment) => comment.id !== action.tempId);
+  }
+};
+
+const CommentsWithReducer = ({
+  initialComments,
+}: {
+  initialComments: Comment[];
+}) => {
+  const [comments, dispatch] = useReducer(commentsReducer, initialComments);
+
+  return <section>{/* ... */}</section>;
+};
+```
+
 ## 언제 쓰나
 
 좋아요, 저장, 삭제, 댓글 작성처럼 결과를 바로 기대하는 액션에 쓴다. 먼저 화면을 바꾸고, 성공하면 서버 응답으로 확정하고, 실패하면 되돌린다.

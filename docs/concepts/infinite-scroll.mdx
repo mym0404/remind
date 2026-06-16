@@ -1,5 +1,120 @@
 # Infinite Scroll
 
+## API reference
+
+infinite scroll은 목록 끝에 둔 sentinel element를 `IntersectionObserver`로 관찰한다. 사용자가 끝에 가까워지면 다음 page를 요청하고, 컴포넌트가 사라질 때는 observer와 진행 중인 요청을 함께 정리한다.
+
+### `new IntersectionObserver(callback, options?)`
+
+- 선언: `new IntersectionObserver(callback, options?)`
+- 인자: `callback`은 관찰 결과 배열과 observer를 받는다.
+- 반환: `IntersectionObserver` instance를 반환한다.
+
+```tsx title="observer-constructor.tsx"
+const observer = new IntersectionObserver(
+  (entries, observer) => {
+    const [entry] = entries;
+
+    if (!entry?.isIntersecting) return;
+
+    observer.unobserve(entry.target);
+    void loadNextPage();
+  },
+  {
+    root: scrollAreaRef.current,
+    rootMargin: "240px 0px",
+    threshold: 0.1,
+  },
+);
+```
+
+### callback entries
+
+- 속성: `entry.target`은 관찰 중인 element다.
+- 속성: `entry.isIntersecting`은 기준 영역과 겹치는지 나타낸다.
+- 속성: `entry.intersectionRatio`는 겹친 비율이다.
+- 기준: infinite scroll에서는 보통 첫 entry만 읽어도 충분하다.
+
+```tsx title="entry-guard.tsx"
+const handleIntersect = (entries: IntersectionObserverEntry[]) => {
+  const [entry] = entries;
+
+  if (!entry?.isIntersecting) return;
+  if (isLoadingRef.current || !hasMoreRef.current) return;
+
+  void loadNextPage();
+};
+```
+
+### `observe`, `unobserve`, `disconnect`
+
+- `observe(target)`: target element 관찰을 시작한다.
+- `unobserve(target)`: 특정 target만 관찰에서 뺀다.
+- `disconnect()`: 이 observer가 관찰하던 모든 target을 끊는다.
+- cleanup: React effect에서는 같은 observer를 계속 들고 있기보다 effect 안에서 만들고 cleanup에서 끊는다.
+
+```tsx title="observer-methods.tsx"
+useEffect(() => {
+  const sentinel = sentinelRef.current;
+
+  if (!sentinel) return;
+
+  const observer = new IntersectionObserver(handleIntersect);
+
+  observer.observe(sentinel);
+
+  return () => {
+    observer.unobserve(sentinel);
+    observer.disconnect();
+  };
+}, [handleIntersect]);
+```
+
+### `root`, `rootMargin`, `threshold`
+
+- `root`: 기준 영역이다. `null`이면 viewport를 기준으로 삼는다.
+- `rootMargin`: 기준 영역을 CSS margin 문법으로 넓히거나 줄인다.
+- `threshold`: callback을 실행할 노출 비율이다. 숫자 하나나 숫자 배열을 쓴다.
+- 설정: 목록 끝에 닿기 전에 미리 불러오려면 아래쪽 `rootMargin`을 키운다.
+
+```tsx title="observer-options.tsx"
+const options: IntersectionObserverInit = {
+  root: listRef.current,
+  rootMargin: "0px 0px 320px",
+  threshold: [0, 0.25, 1],
+};
+```
+
+### React ref와 effect cleanup
+
+- DOM node는 `useRef`에 담아 effect 안에서 읽는다.
+- callback에서 최신 loading, page, hasMore 값을 읽어야 하면 state 대신 ref를 함께 둔다.
+- cleanup에서는 `disconnect()`로 observer를 끊고, 진행 중인 요청이 있으면 `abort()`로 취소한다.
+
+```tsx title="react-cleanup.tsx"
+const sentinelRef = useRef<HTMLDivElement>(null);
+const abortControllerRef = useRef<AbortController>();
+
+useEffect(() => {
+  const sentinel = sentinelRef.current;
+
+  if (!sentinel) return;
+
+  const observer = new IntersectionObserver(([entry]) => {
+    if (entry?.isIntersecting) {
+      void loadNextPage();
+    }
+  });
+
+  observer.observe(sentinel);
+
+  return () => {
+    observer.disconnect();
+    abortControllerRef.current?.abort();
+  };
+}, [loadNextPage]);
+```
+
 ## 언제 쓰나
 
 - 검색 결과, 피드, 알림처럼 사용자가 계속 내려가며 보는 목록에 쓴다.

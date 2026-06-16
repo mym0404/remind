@@ -1,5 +1,121 @@
 # ResizeObserver
 
+## API reference
+
+`ResizeObserver`는 element 크기 변화를 비동기로 알려준다. callback은 layout 계산이 끝난 뒤 호출되며, 한 번에 여러 entry가 들어올 수 있다.
+
+```ts
+type ResizeObserverCallback = (
+  entries: ResizeObserverEntry[],
+  observer: ResizeObserver,
+) => void;
+
+const observer = new ResizeObserver(callback);
+```
+
+| 항목 | 설명 |
+|---|---|
+| `entries` | 크기가 바뀐 element별 `ResizeObserverEntry` 목록 |
+| `observer` | callback을 실행한 `ResizeObserver` instance |
+
+`ResizeObserverEntry`에서는 어떤 box를 기준으로 읽을지 먼저 정한다. layout 위치 계산처럼 padding과 border가 영향을 주면 `borderBoxSize`를 우선 보고, content 영역만 필요하면 `contentBoxSize`나 `contentRect`를 쓴다.
+
+| property | 값 |
+|---|---|
+| `contentRect` | content box의 `width`, `height`, `top`, `left`를 담은 `DOMRectReadOnly` |
+| `borderBoxSize` | border box 크기 배열. `inlineSize`와 `blockSize`를 읽는다. |
+| `contentBoxSize` | content box 크기 배열. `inlineSize`와 `blockSize`를 읽는다. |
+
+```tsx
+const readEntrySize = (entry: ResizeObserverEntry) => {
+  const borderBox = entry.borderBoxSize[0];
+  const contentBox = entry.contentBoxSize[0];
+
+  if (borderBox) {
+    return {
+      height: borderBox.blockSize,
+      width: borderBox.inlineSize,
+    };
+  }
+
+  if (contentBox) {
+    return {
+      height: contentBox.blockSize,
+      width: contentBox.inlineSize,
+    };
+  }
+
+  return {
+    height: entry.contentRect.height,
+    width: entry.contentRect.width,
+  };
+};
+```
+
+관찰은 `observe`로 시작하고, 특정 element만 빼려면 `unobserve`를 쓴다. component가 사라질 때는 `disconnect`로 남은 관찰을 모두 끊는다.
+
+```ts
+observer.observe(element, { box: "border-box" });
+observer.unobserve(element);
+observer.disconnect();
+```
+
+React에서는 ref가 가리키는 element를 effect 안에서 읽고 cleanup에서 observer를 정리한다. callback 안에서 바로 `setState`를 반복하면 같은 frame 안에서 layout read와 React write가 맞물려 ResizeObserver loop 경고가 날 수 있으므로, 변경 비교 뒤 `requestAnimationFrame`으로 묶어 넘긴다.
+
+```tsx
+const useBorderBoxSize = () => {
+  const ref = useRef<HTMLDivElement>(null);
+  const lastSizeRef = useRef({ height: 0, width: 0 });
+  const frameIdRef = useRef<number>();
+  const [size, setSize] = useState({ height: 0, width: 0 });
+
+  useEffect(() => {
+    const element = ref.current;
+
+    if (!element) {
+      return;
+    }
+
+    const observer = new ResizeObserver(([entry]) => {
+      if (!entry) {
+        return;
+      }
+
+      const nextSize = readEntrySize(entry);
+
+      if (
+        lastSizeRef.current.width === nextSize.width &&
+        lastSizeRef.current.height === nextSize.height
+      ) {
+        return;
+      }
+
+      if (frameIdRef.current !== undefined) {
+        window.cancelAnimationFrame(frameIdRef.current);
+      }
+
+      frameIdRef.current = window.requestAnimationFrame(() => {
+        lastSizeRef.current = nextSize;
+        setSize(nextSize);
+        frameIdRef.current = undefined;
+      });
+    });
+
+    observer.observe(element, { box: "border-box" });
+
+    return () => {
+      observer.disconnect();
+
+      if (frameIdRef.current !== undefined) {
+        window.cancelAnimationFrame(frameIdRef.current);
+      }
+    };
+  }, []);
+
+  return { ref, size };
+};
+```
+
 ## 언제 쓰나
 
 element 자체의 크기로 UI를 맞춰야 할 때 쓴다. 사이드바 접힘, 글꼴·이미지 로딩, 부모 container 변화는 window resize 없이도 크기를 바꾼다.

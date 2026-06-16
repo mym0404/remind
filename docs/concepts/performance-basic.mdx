@@ -1,5 +1,143 @@
 # 성능 최적화 기초
 
+## API reference
+
+성능 API는 렌더링을 없애는 도구가 아니라 같은 입력에서 다시 쓸 값을 고정하는 도구다. 먼저 Profiler로 느린 지점을 확인하고, 참조가 실제 경계를 지나갈 때만 캐시한다.
+
+### `React.memo`
+
+`React.memo`는 component를 받아 memoized component를 돌려준다. props가 이전 render와 같으면 React는 이 component의 render를 건너뛸 수 있다.
+
+```ts title="declaration"
+type PropsAreEqual<P> = (prevProps: Readonly<P>, nextProps: Readonly<P>) => boolean;
+
+declare function memo<P extends object>(
+  Component: (props: P) => ReactNode,
+  arePropsEqual?: PropsAreEqual<P>,
+): (props: P) => ReactNode;
+```
+
+```tsx title="memo-example.tsx"
+type Product = {
+  id: string;
+  name: string;
+  price: number;
+};
+
+const ProductRow = React.memo(({ product }: { product: Product }) => (
+  <li>
+    {product.name}: {product.price}
+  </li>
+));
+
+const ProductList = ({ products }: { products: Product[] }) => (
+  <ul>
+    {products.map((product) => (
+      <ProductRow key={product.id} product={product} />
+    ))}
+  </ul>
+);
+```
+
+### `useMemo`
+
+`useMemo`는 render 중 계산한 값을 dependency가 바뀔 때까지 캐시한다. 반환값은 `calculateValue`가 돌려준 값이다.
+
+```ts title="declaration"
+type DependencyList = readonly unknown[];
+
+declare function useMemo<T>(
+  calculateValue: () => T,
+  dependencies: DependencyList,
+): T;
+```
+
+```tsx title="useMemo-example.tsx"
+const SortedProducts = ({ products }: { products: Product[] }) => {
+  const sortedProducts = useMemo(
+    () => [...products].sort((a, b) => a.price - b.price),
+    [products],
+  );
+
+  return (
+    <ul>
+      {sortedProducts.map((product) => (
+        <li key={product.id}>{product.name}</li>
+      ))}
+    </ul>
+  );
+};
+```
+
+### `useCallback`
+
+`useCallback`은 function 자체를 dependency가 바뀔 때까지 캐시한다. 반환값은 넘긴 callback과 같은 함수이며, memoized child에 안정적인 prop을 넘길 때 주로 쓴다.
+
+```ts title="declaration"
+declare function useCallback<T extends (...args: never[]) => unknown>(
+  callback: T,
+  dependencies: DependencyList,
+): T;
+```
+
+```tsx title="useCallback-example.tsx"
+const Cart = ({ products }: { products: Product[] }) => {
+  const [selectedId, setSelectedId] = useState<string>();
+
+  const selectProduct = useCallback((id: string) => {
+    setSelectedId(id);
+  }, []);
+
+  return (
+    <ul>
+      {products.map((product) => (
+        <SelectableProduct
+          key={product.id}
+          isSelected={product.id === selectedId}
+          product={product}
+          onSelect={selectProduct}
+        />
+      ))}
+    </ul>
+  );
+};
+```
+
+### `Profiler`와 `onRender`
+
+`Profiler`는 감싼 subtree의 commit 비용을 잰다. `onRender` callback은 commit 뒤 호출되며 cached value를 돌려주지 않는다.
+
+```ts title="declaration"
+type ProfilerOnRenderCallback = (
+  id: string,
+  phase: "mount" | "update" | "nested-update",
+  actualDuration: number,
+  baseDuration: number,
+  startTime: number,
+  commitTime: number,
+) => void;
+```
+
+```tsx title="profiler-example.tsx"
+const onRender: ProfilerOnRenderCallback = (
+  id,
+  phase,
+  actualDuration,
+) => {
+  console.table({ id, phase, actualDuration });
+};
+
+const ProductPage = ({ products }: { products: Product[] }) => (
+  <Profiler id="ProductList" onRender={onRender}>
+    <ProductList products={products} />
+  </Profiler>
+);
+```
+
+### Dependency arrays
+
+Dependency array에는 callback이나 계산식 안에서 읽는 props, state, render 안의 변수와 함수를 넣는다. `[]`는 mount 뒤 같은 값을 계속 쓰겠다는 뜻이고, dependency를 빠뜨리면 오래된 값을 읽을 수 있다.
+
 ## 언제 쓰나
 
 사용자가 느끼는 지연이 있거나 Profiler에서 병목이 보일 때만 적용한다. 먼저 state 크기, props 변경 범위, 리스트 렌더링 비용을 확인한다.
