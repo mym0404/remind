@@ -5,7 +5,11 @@ import { ThemeProvider, useTheme, App } from "./App";
 
 const Probe = () => {
   const { theme, toggleTheme } = useTheme();
-  return <button type="button" onClick={toggleTheme}>{theme}</button>;
+  return (
+    <button type="button" onClick={toggleTheme}>
+      {theme}
+    </button>
+  );
 };
 
 describe("Context Provider Guard practice", () => {
@@ -14,7 +18,11 @@ describe("Context Provider Guard practice", () => {
   });
 
   it("provides the default theme inside ThemeProvider", () => {
-    render(<ThemeProvider><Probe /></ThemeProvider>);
+    render(
+      <ThemeProvider>
+        <Probe />
+      </ThemeProvider>,
+    );
     expect(screen.getByRole("button", { name: "light" })).toBeInTheDocument();
   });
 
@@ -37,8 +45,16 @@ describe("Context Provider Guard practice", () => {
       values.push(useTheme());
       return null;
     };
-    const { rerender } = render(<ThemeProvider><Collector /></ThemeProvider>);
-    rerender(<ThemeProvider><Collector /></ThemeProvider>);
+    const { rerender } = render(
+      <ThemeProvider>
+        <Collector />
+      </ThemeProvider>,
+    );
+    rerender(
+      <ThemeProvider>
+        <Collector />
+      </ThemeProvider>,
+    );
 
     expect(values[0]).toBe(values[1]);
   });

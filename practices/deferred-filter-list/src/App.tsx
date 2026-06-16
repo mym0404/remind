@@ -17,7 +17,11 @@ export const App = () => {
         <label htmlFor="query">검색어</label>
         <input id="query" value={query} onChange={(event) => setQuery(event.target.value)} />
         <p role="status">{query !== deferredQuery ? "목록 갱신 중" : "목록 준비"}</p>
-        <ul>{filtered.map((item) => <li key={item}>{item}</li>)}</ul>
+        <ul>
+          {filtered.map((item) => (
+            <li key={item}>{item}</li>
+          ))}
+        </ul>
       </section>
     </main>
   );

@@ -11,7 +11,10 @@ class MockIntersectionObserver {
     MockIntersectionObserver.instances.push(this);
   }
   trigger(isIntersecting = true) {
-    this.callback([{ isIntersecting } as IntersectionObserverEntry], this as unknown as IntersectionObserver);
+    this.callback(
+      [{ isIntersecting } as IntersectionObserverEntry],
+      this as unknown as IntersectionObserver,
+    );
   }
   unobserve = vi.fn();
   takeRecords = vi.fn(() => []);
@@ -42,7 +45,9 @@ describe("Infinite Scroll Sentinel practice", () => {
 
   it("observes the sentinel ref on mount", () => {
     render(<App />);
-    expect(MockIntersectionObserver.instances[0].observe).toHaveBeenCalledWith(screen.getByTestId("sentinel"));
+    expect(MockIntersectionObserver.instances[0].observe).toHaveBeenCalledWith(
+      screen.getByTestId("sentinel"),
+    );
   });
 
   it("calls the hook callback only when the sentinel intersects", () => {

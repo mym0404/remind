@@ -5,7 +5,8 @@ export const searchProducts = async (query: string, delay = 0) =>
     window.setTimeout(() => resolve([`${query} result`]), delay);
   });
 
-export const shouldApplyResponse = (responseId: number, latestId: number) => responseId === latestId;
+export const shouldApplyResponse = (responseId: number, latestId: number) =>
+  responseId === latestId;
 
 export const App = () => {
   const [query, setQuery] = useState("react");
@@ -28,7 +29,11 @@ export const App = () => {
         <label htmlFor="query">검색어</label>
         <input id="query" value={query} onChange={(event) => setQuery(event.target.value)} />
         <p role="status">{loading ? "검색 중" : "검색 완료"}</p>
-        <ul>{results.map((result) => <li key={result}>{result}</li>)}</ul>
+        <ul>
+          {results.map((result) => (
+            <li key={result}>{result}</li>
+          ))}
+        </ul>
       </section>
     </main>
   );

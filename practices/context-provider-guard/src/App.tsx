@@ -22,7 +22,9 @@ const ThemePanel = () => {
       <p className="eyebrow">State</p>
       <h1>Context Provider Guard</h1>
       <p role="status">{theme?.theme}</p>
-      <button type="button" onClick={theme?.toggleTheme}>테마 변경</button>
+      <button type="button" onClick={theme?.toggleTheme}>
+        테마 변경
+      </button>
     </section>
   );
 };

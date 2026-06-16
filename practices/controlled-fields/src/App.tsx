@@ -41,11 +41,23 @@ export const App = () => {
         <p className="eyebrow">Form</p>
         <h1>Controlled Fields</h1>
         <label htmlFor="name">이름</label>
-        <input id="name" value={form.name} onChange={(event) => handleFieldChange("name", event.target.value)} />
+        <input
+          id="name"
+          value={form.name}
+          onChange={(event) => handleFieldChange("name", event.target.value)}
+        />
         <label htmlFor="email">이메일</label>
-        <input id="email" value={form.email} onChange={(event) => handleFieldChange("email", event.target.value)} />
+        <input
+          id="email"
+          value={form.email}
+          onChange={(event) => handleFieldChange("email", event.target.value)}
+        />
         <label htmlFor="role">역할</label>
-        <select id="role" value={form.role} onChange={(event) => handleFieldChange("role", event.target.value as Role)}>
+        <select
+          id="role"
+          value={form.role}
+          onChange={(event) => handleFieldChange("role", event.target.value as Role)}
+        >
           {roleOptions.map((role) => (
             <option key={role} value={role}>
               {role}

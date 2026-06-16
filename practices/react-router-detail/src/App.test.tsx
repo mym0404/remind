@@ -11,27 +11,46 @@ describe("React Router Detail practice", () => {
   });
 
   it("renders the list route", () => {
-    render(<MemoryRouter initialEntries={["/"]}><App /></MemoryRouter>);
+    render(
+      <MemoryRouter initialEntries={["/"]}>
+        <App />
+      </MemoryRouter>,
+    );
 
-    expect(screen.getByRole("link", { name: "React Handbook" })).toHaveAttribute("href", "/articles/react");
+    expect(screen.getByRole("link", { name: "React Handbook" })).toHaveAttribute(
+      "href",
+      "/articles/react",
+    );
   });
 
   it("renders detail content from route params", () => {
-    render(<MemoryRouter initialEntries={["/articles/router"]}><App /></MemoryRouter>);
+    render(
+      <MemoryRouter initialEntries={["/articles/router"]}>
+        <App />
+      </MemoryRouter>,
+    );
 
     expect(screen.getByRole("heading", { name: "Router Patterns" })).toBeInTheDocument();
     expect(screen.getByText("URL과 화면을 연결합니다.")).toBeInTheDocument();
   });
 
   it("renders a 404 fallback for an unknown id", () => {
-    render(<MemoryRouter initialEntries={["/articles/missing"]}><App /></MemoryRouter>);
+    render(
+      <MemoryRouter initialEntries={["/articles/missing"]}>
+        <App />
+      </MemoryRouter>,
+    );
 
     expect(screen.getByRole("alert")).toHaveTextContent("문서를 찾을 수 없습니다.");
   });
 
   it("navigates from list to detail through links", async () => {
     const user = userEvent.setup();
-    render(<MemoryRouter initialEntries={["/"]}><App /></MemoryRouter>);
+    render(
+      <MemoryRouter initialEntries={["/"]}>
+        <App />
+      </MemoryRouter>,
+    );
 
     await user.click(screen.getByRole("link", { name: "React Handbook" }));
 

@@ -17,7 +17,11 @@ export const App = () => {
         <h1>URL Search Filter</h1>
         <label htmlFor="query">검색어</label>
         <input id="query" defaultValue={query} />
-        <ul>{filtered.map((item) => <li key={item}>{item}</li>)}</ul>
+        <ul>
+          {filtered.map((item) => (
+            <li key={item}>{item}</li>
+          ))}
+        </ul>
       </section>
     </main>
   );

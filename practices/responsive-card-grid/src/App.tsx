@@ -6,7 +6,11 @@ export const App = () => (
       <p className="eyebrow">CSS</p>
       <h1>Responsive Card Grid</h1>
       <div className="card-grid">
-        {cards.map((card) => <article className="card" key={card}>{card}</article>)}
+        {cards.map((card) => (
+          <article className="card" key={card}>
+            {card}
+          </article>
+        ))}
       </div>
     </section>
   </main>

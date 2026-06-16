@@ -5,7 +5,9 @@ export type LoadState =
   | { status: "empty" }
   | { status: "error"; message: string };
 
-export const fetchProducts = async (): Promise<Product[]> => [{ id: "react", name: "React Handbook" }];
+export const fetchProducts = async (): Promise<Product[]> => [
+  { id: "react", name: "React Handbook" },
+];
 
 export const toLoadState = (_products: Product[]): LoadState => ({ status: "idle" });
 

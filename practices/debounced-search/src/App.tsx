@@ -24,7 +24,11 @@ export const App = () => {
         <label htmlFor="query">검색어</label>
         <input id="query" value={query} onChange={(event) => setQuery(event.target.value)} />
         <p role="status">검색 기준: {debouncedQuery || "전체"}</p>
-        <ul>{results.map((result) => <li key={result}>{result}</li>)}</ul>
+        <ul>
+          {results.map((result) => (
+            <li key={result}>{result}</li>
+          ))}
+        </ul>
       </section>
     </main>
   );

@@ -19,7 +19,9 @@ describe("File Tree Transform practice", () => {
   });
 
   it("deduplicates repeated paths", () => {
-    expect(buildFileTree(["README.md", "README.md"])).toEqual([{ type: "file", name: "README.md" }]);
+    expect(buildFileTree(["README.md", "README.md"])).toEqual([
+      { type: "file", name: "README.md" },
+    ]);
   });
 
   it("merges files that share folder ancestors", () => {
@@ -64,7 +66,10 @@ describe("File Tree Transform practice", () => {
   });
 
   it("sorts folders before files at the same depth", () => {
-    expect(buildFileTree(["z-file.ts", "src/App.tsx"])[0]).toMatchObject({ type: "folder", name: "src" });
+    expect(buildFileTree(["z-file.ts", "src/App.tsx"])[0]).toMatchObject({
+      type: "folder",
+      name: "src",
+    });
   });
 
   it("sorts names case-insensitively inside each depth", () => {

@@ -14,13 +14,15 @@ describe("Reducer Actions practice", () => {
   });
 
   it("toggles a todo by id", () => {
-    expect(todoReducer([{ id: "a", title: "기획", done: false }], { type: "toggle", id: "a" })).toEqual([
-      { id: "a", title: "기획", done: true },
-    ]);
+    expect(
+      todoReducer([{ id: "a", title: "기획", done: false }], { type: "toggle", id: "a" }),
+    ).toEqual([{ id: "a", title: "기획", done: true }]);
   });
 
   it("removes a todo by id", () => {
-    expect(todoReducer([{ id: "a", title: "기획", done: false }], { type: "remove", id: "a" })).toEqual([]);
+    expect(
+      todoReducer([{ id: "a", title: "기획", done: false }], { type: "remove", id: "a" }),
+    ).toEqual([]);
   });
 
   it("renders added todos from the reducer", async () => {

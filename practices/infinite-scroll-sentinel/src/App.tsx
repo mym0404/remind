@@ -30,7 +30,11 @@ export const App = () => {
       <section className="panel stack">
         <p className="eyebrow">List</p>
         <h1>Infinite Scroll Sentinel</h1>
-        <ul>{items.map((item) => <li key={item}>{item}</li>)}</ul>
+        <ul>
+          {items.map((item) => (
+            <li key={item}>{item}</li>
+          ))}
+        </ul>
         <div ref={sentinelRef} data-testid="sentinel" />
       </section>
     </main>

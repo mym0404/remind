@@ -20,7 +20,9 @@ describe("Scrollable Panel Layout practice", () => {
 
   it("uses minmax(0, 1fr) for flexible grid rows", () => {
     expect(css).toMatch(/\.app-shell\s*{[^}]*grid-template-rows:[^;]*minmax\(\s*0\s*,\s*1fr\s*\)/s);
-    expect(css).toMatch(/\.content-panel\s*{[^}]*grid-template-rows:[^;]*minmax\(\s*0\s*,\s*1fr\s*\)/s);
+    expect(css).toMatch(
+      /\.content-panel\s*{[^}]*grid-template-rows:[^;]*minmax\(\s*0\s*,\s*1fr\s*\)/s,
+    );
   });
 
   it("puts overflow only on the panel body", () => {

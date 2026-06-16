@@ -5,9 +5,9 @@ import { App, formatPreview, initialForm, resetForm, updateFormField } from "./A
 
 describe("Controlled Fields practice", () => {
   it("formats the live preview from the current form state", () => {
-    expect(formatPreview({ name: "민지", email: "minji@example.com", role: "backend", terms: true })).toBe(
-      "민지 / minji@example.com / backend / 약관 동의",
-    );
+    expect(
+      formatPreview({ name: "민지", email: "minji@example.com", role: "backend", terms: true }),
+    ).toBe("민지 / minji@example.com / backend / 약관 동의");
     expect(formatPreview(initialForm)).toBe("입력 대기");
   });
 
@@ -18,7 +18,12 @@ describe("Controlled Fields practice", () => {
       "minji@example.com",
     );
 
-    expect(nextForm).toEqual({ name: "민지", email: "minji@example.com", role: "frontend", terms: false });
+    expect(nextForm).toEqual({
+      name: "민지",
+      email: "minji@example.com",
+      role: "frontend",
+      terms: false,
+    });
   });
 
   it("updates text fields and the preview together", async () => {
@@ -30,7 +35,9 @@ describe("Controlled Fields practice", () => {
 
     expect(screen.getByLabelText("이름")).toHaveValue("민지");
     expect(screen.getByLabelText("이메일")).toHaveValue("minji@example.com");
-    expect(screen.getByRole("status")).toHaveTextContent("민지 / minji@example.com / frontend / 약관 미동의");
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "민지 / minji@example.com / frontend / 약관 미동의",
+    );
   });
 
   it("controls the role select and terms checkbox", async () => {
@@ -42,7 +49,9 @@ describe("Controlled Fields practice", () => {
 
     expect(screen.getByLabelText("역할")).toHaveValue("backend");
     expect(screen.getByLabelText("약관에 동의합니다")).toBeChecked();
-    expect(screen.getByRole("status")).toHaveTextContent("이름 없음 / 이메일 없음 / backend / 약관 동의");
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "이름 없음 / 이메일 없음 / backend / 약관 동의",
+    );
   });
 
   it("keeps controlled inputs writable after repeated edits", async () => {
@@ -58,7 +67,9 @@ describe("Controlled Fields practice", () => {
   });
 
   it("returns the initial form state on reset", () => {
-    expect(resetForm({ name: "민지", email: "minji@example.com", role: "designer", terms: true })).toEqual(initialForm);
+    expect(
+      resetForm({ name: "민지", email: "minji@example.com", role: "designer", terms: true }),
+    ).toEqual(initialForm);
   });
 
   it("resets every field and preview together", async () => {
@@ -70,7 +81,9 @@ describe("Controlled Fields practice", () => {
     await user.selectOptions(screen.getByLabelText("역할"), "designer");
     await user.click(screen.getByLabelText("약관에 동의합니다"));
 
-    expect(screen.getByRole("status")).toHaveTextContent("민지 / minji@example.com / designer / 약관 동의");
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "민지 / minji@example.com / designer / 약관 동의",
+    );
 
     await user.click(screen.getByRole("button", { name: "초기화" }));
 

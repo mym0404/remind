@@ -11,7 +11,10 @@ describe("Sticky Table Header practice", () => {
     render(<App />);
 
     expect(screen.getByRole("table")).toBeInTheDocument();
-    expect(screen.getAllByRole("columnheader").map((header) => header.textContent)).toEqual(["ID", "Name"]);
+    expect(screen.getAllByRole("columnheader").map((header) => header.textContent)).toEqual([
+      "ID",
+      "Name",
+    ]);
   });
 
   it("renders a scroll container around the table", () => {

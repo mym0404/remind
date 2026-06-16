@@ -19,8 +19,14 @@ export const App = () => {
         <h1>Reducer Actions</h1>
         <label htmlFor="todo">할 일</label>
         <input id="todo" value={title} onChange={(event) => setTitle(event.target.value)} />
-        <button type="button" onClick={() => dispatch({ type: "add", title })}>추가</button>
-        <ul>{todos.map((todo) => <li key={todo.id}>{todo.title}</li>)}</ul>
+        <button type="button" onClick={() => dispatch({ type: "add", title })}>
+          추가
+        </button>
+        <ul>
+          {todos.map((todo) => (
+            <li key={todo.id}>{todo.title}</li>
+          ))}
+        </ul>
       </section>
     </main>
   );

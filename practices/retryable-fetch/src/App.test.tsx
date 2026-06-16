@@ -5,7 +5,9 @@ import { App, initialReportRequest, loadReport, type Report } from "./App";
 
 describe("Retryable Fetch practice", () => {
   it("rejects with a user-facing error on the initial load", async () => {
-    await expect(loadReport(initialReportRequest, 1)).rejects.toThrow("보고서를 불러오지 못했습니다.");
+    await expect(loadReport(initialReportRequest, 1)).rejects.toThrow(
+      "보고서를 불러오지 못했습니다.",
+    );
   });
 
   it("resolves report data when retrying the same request", async () => {

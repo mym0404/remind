@@ -27,10 +27,20 @@ export const App = () => {
         <p className="eyebrow">Form</p>
         <h1>Form Validation Errors</h1>
         <label htmlFor="name">이름</label>
-        <input id="name" ref={nameRef} value={values.name} onChange={(event) => setValues({ ...values, name: event.target.value })} />
+        <input
+          id="name"
+          ref={nameRef}
+          value={values.name}
+          onChange={(event) => setValues({ ...values, name: event.target.value })}
+        />
         {errors.name ? <p id="name-error">{errors.name}</p> : null}
         <label htmlFor="email">이메일</label>
-        <input id="email" ref={emailRef} value={values.email} onChange={(event) => setValues({ ...values, email: event.target.value })} />
+        <input
+          id="email"
+          ref={emailRef}
+          value={values.email}
+          onChange={(event) => setValues({ ...values, email: event.target.value })}
+        />
         {errors.email ? <p id="email-error">{errors.email}</p> : null}
         <button type="submit">제출</button>
       </form>

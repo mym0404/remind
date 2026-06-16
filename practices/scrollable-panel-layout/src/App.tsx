@@ -6,7 +6,9 @@ export const App = () => (
     <section className="content-panel">
       <div className="panel-header">Inbox</div>
       <div className="panel-body">
-        {messages.map((message) => <p key={message}>{message}</p>)}
+        {messages.map((message) => (
+          <p key={message}>{message}</p>
+        ))}
       </div>
     </section>
   </main>

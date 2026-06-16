@@ -7,6 +7,7 @@
 - `package.json`: Rspress 실행 script와 npm dependency를 둔다.
 - `pnpm-lock.yaml`: pnpm dependency lockfile이다.
 - `pnpm-workspace.yaml`: pnpm workspace 설정이다.
+- `biome.json`: practice workspace에 적용되는 Biome formatter 설정이다.
 - `.mise.toml`: Node와 pnpm 버전을 고정한다.
 - `rspress.config.ts`: Rspress root, base path, output, search, sidebar, llms 설정을 둔다.
 - `tsconfig.json`: Rspress와 MDX type check 설정을 둔다.

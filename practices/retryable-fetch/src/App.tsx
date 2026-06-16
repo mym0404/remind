@@ -26,7 +26,9 @@ export const App = () => {
       <section className="panel stack">
         <p className="eyebrow">Async</p>
         <h1>Retryable Fetch</h1>
-        <p role="status">{status === "loading" ? "불러오는 중" : status === "error" ? "불러오기 실패" : ""}</p>
+        <p role="status">
+          {status === "loading" ? "불러오는 중" : status === "error" ? "불러오기 실패" : ""}
+        </p>
         {title ? <p>{title}</p> : null}
         {status === "error" ? <button type="button">다시 시도</button> : null}
       </section>

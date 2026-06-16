@@ -17,7 +17,9 @@ export const App = () => {
         <h1>Local Storage Hook</h1>
         <label htmlFor="name">이름</label>
         <input id="name" value={name} onChange={(event) => setName(event.target.value)} />
-        <button type="button" onClick={resetName}>초기화</button>
+        <button type="button" onClick={resetName}>
+          초기화
+        </button>
         <p role="status">{name || "저장된 이름 없음"}</p>
       </section>
     </main>

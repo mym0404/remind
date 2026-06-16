@@ -6,6 +6,8 @@
   "scripts": {
     "build": "rspress build",
     "dev": "rspress dev",
+    "format": "biome format --write",
+    "format:check": "biome format",
     "preview": "rspress preview",
     "validate:codeblocks": "node scripts/validate-codeblocks.mjs"
   },
